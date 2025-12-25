@@ -1,0 +1,85 @@
+; VaultKey Protocol v1 - CDDL Schema
+
+uint_8 = 0..255
+
+; Main Message Wrapper
+vk_message = {
+    "v": 1,                 ; Protocol version
+    "type": msg_type,        ; Message type identifier
+    "payload": payload,      ; Message payload
+    ? "id": uint            ; Optional request ID for async handling
+}
+
+msg_type = (
+    ping: 0,
+    pong: 1,
+    auth_challenge: 2,
+    auth_response: 3,
+    vault_list_req: 4,
+    vault_list_res: 5,
+    vault_get_req: 6,
+    vault_get_res: 7,
+    vault_set_req: 8,
+    vault_set_res: 9,
+    error: 255
+)
+
+payload = (
+    ping_payload /
+    pong_payload /
+    auth_challenge_payload /
+    auth_response_payload /
+    vault_list_req_payload /
+    vault_list_res_payload /
+    vault_get_req_payload /
+    vault_get_res_payload /
+    vault_set_req_payload /
+    vault_set_res_payload /
+    error_payload
+)
+
+ping_payload = { "data": bstr }
+pong_payload = { "data": bstr }
+
+auth_challenge_payload = {
+    "challenge": bstr .size 32,
+    "algo": "HMAC-SHA256"
+}
+
+auth_response_payload = {
+    "response": bstr .size 32
+}
+
+vault_list_req_payload = {
+    ? "filter": tstr
+}
+
+vault_list_res_payload = {
+    "entries": [* tstr]
+}
+
+vault_get_req_payload = {
+    "key": tstr
+}
+
+vault_get_res_payload = {
+    "value": bstr,          ; Encrypted entry (AES-GCM)
+    "nonce": bstr .size 12,
+    "tag": bstr .size 16
+}
+
+vault_set_req_payload = {
+    "key": tstr,
+    "value": bstr,          ; Encrypted entry
+    "nonce": bstr .size 12,
+    "tag": bstr .size 16
+}
+
+vault_set_res_payload = {
+    "status": "ok" / "error"
+}
+
+error_payload = {
+    "code": uint,
+    "message": tstr
+}
