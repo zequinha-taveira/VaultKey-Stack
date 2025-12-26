@@ -115,6 +115,31 @@ void tud_cdc_rx_cb(uint8_t itf) {
           tud_cdc_write_flush();
         }
       }
+    } else if (packet.type == VK_MSG_VAULT_GET_REQ) {
+      // Payload: [NameLen:1][Name:N]
+      if (packet.payload_len > 1) {
+        uint8_t name_len = packet.payload[0];
+        char name[ENTRY_NAME_MAX];
+        uint8_t safe_name_len =
+            name_len < (ENTRY_NAME_MAX - 1) ? name_len : (ENTRY_NAME_MAX - 1);
+        memcpy(name, &packet.payload[1], safe_name_len);
+        name[safe_name_len] = '\0';
+
+        uint8_t secret[ENTRY_SECRET_MAX];
+        uint16_t secret_len = 0;
+        bool success = vault_get_decrypted(name, secret, &secret_len);
+
+        uint8_t res_buf[128];
+        uint16_t res_len =
+            vk_protocol_create_packet(VK_MSG_VAULT_GET_RES, packet.id, secret,
+                                      secret_len, res_buf, sizeof(res_buf));
+
+        // Sanitize memory
+        vk_crypto_zeroize(secret, sizeof(secret));
+
+        tud_cdc_write(res_buf, res_len);
+        tud_cdc_write_flush();
+      }
     } else if (packet.type == VK_MSG_VAULT_LIST_REQ) {
       char names[MAX_ENTRIES][ENTRY_NAME_MAX];
       int count = vault_list(names, MAX_ENTRIES);

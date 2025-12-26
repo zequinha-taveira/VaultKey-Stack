@@ -157,3 +157,8 @@ bool vk_crypto_decrypt(const uint8_t *key, const uint8_t *ciphertext,
 
   return true;
 }
+void vk_crypto_zeroize(void *v, size_t n) {
+  volatile uint8_t *p = (uint8_t *)v;
+  while (n--)
+    *p++ = 0;
+}

@@ -157,8 +157,12 @@ async function renderVault() {
       card.querySelector(".type-btn").addEventListener("click", async (e) => {
         e.stopPropagation();
         try {
-          await invoke("type_text", { text: name });
+          // 1. Fetch real secret from hardware
+          const secret = await invoke("get_vault_secret", { name });
+          // 2. Send secret to hardware to type it
+          await invoke("type_text", { text: secret });
         } catch (err) {
+          alert("Typing failed: " + err);
           console.error(err);
         }
       });

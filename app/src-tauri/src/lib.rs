@@ -128,6 +128,18 @@ async fn type_text(text: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+async fn get_vault_secret(name: String) -> Result<String, String> {
+    let mut payload = Vec::new();
+    let name_bytes = name.as_bytes();
+    payload.push(name_bytes.len() as u8);
+    payload.extend_from_slice(name_bytes);
+
+    // VK_MSG_VAULT_GET_REQ = 22
+    let response = send_command(22, payload).await?;
+    Ok(String::from_utf8_lossy(&response).to_string())
+}
+
+#[tauri::command]
 async fn delete_vault_entry(name: String) -> Result<(), String> {
     let mut payload = Vec::new();
     let name_bytes = name.as_bytes();
@@ -153,7 +165,8 @@ pub fn run() {
             get_security_status,
             list_vault,
             add_vault_entry,
-            delete_vault_entry
+            delete_vault_entry,
+            get_vault_secret
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

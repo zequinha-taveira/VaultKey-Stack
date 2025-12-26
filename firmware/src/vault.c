@@ -89,6 +89,8 @@ void vault_report_auth_result(bool success) {
     vault_data.security.fail_count++;
     if (vault_data.security.fail_count >= 5) {
       vault_data.security.is_locked = true;
+      vk_crypto_zeroize(session_key, sizeof(session_key));
+      session_active = false;
     }
   }
   vault_sync_to_flash();
@@ -142,6 +144,7 @@ bool vault_set(const char *name, const uint8_t *secret, uint16_t len) {
     return false;
   }
 
+  vault_data.entries[slot].secret_len = len;
   vault_data.entries[slot].occupied = true;
   vault_sync_to_flash();
   return true;
@@ -153,6 +156,29 @@ bool vault_get(const char *name, vault_entry_t *out_entry) {
         strcmp(vault_data.entries[i].name, name) == 0) {
       memcpy(out_entry, &vault_data.entries[i], sizeof(vault_entry_t));
       return true;
+    }
+  }
+  return false;
+}
+
+bool vault_get_decrypted(const char *name, uint8_t *out_secret,
+                         uint16_t *out_len) {
+  const uint8_t *master_key = vault_get_session_key();
+  if (!master_key)
+    return false;
+
+  for (int i = 0; i < MAX_ENTRIES; i++) {
+    if (vault_data.entries[i].occupied &&
+        strcmp(vault_data.entries[i].name, name) == 0) {
+
+      uint16_t len = vault_data.entries[i].secret_len;
+      if (vk_crypto_decrypt(master_key, vault_data.entries[i].encrypted_secret,
+                            len, vault_data.entries[i].nonce,
+                            vault_data.entries[i].tag, out_secret)) {
+        *out_len = len;
+        return true;
+      }
+      return false;
     }
   }
   return false;

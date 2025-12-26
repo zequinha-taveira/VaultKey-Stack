@@ -4,7 +4,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-
 // AES-256-GCM Settings
 #define AES_KEY_SIZE 32
 #define GCM_IV_SIZE 12
@@ -28,5 +27,11 @@ bool vk_crypto_encrypt(const uint8_t *key, const uint8_t *plaintext,
 bool vk_crypto_decrypt(const uint8_t *key, const uint8_t *ciphertext,
                        uint16_t len, const uint8_t *iv, const uint8_t *tag,
                        uint8_t *plaintext);
+
+// Memory Sanitization
+void vk_crypto_zeroize(void *v, size_t n);
+
+// Randomness
+void vk_crypto_get_random(uint8_t *buffer, size_t len);
 
 #endif // VK_CRYPTO_H

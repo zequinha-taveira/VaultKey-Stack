@@ -13,8 +13,9 @@ typedef struct {
   uint8_t encrypted_secret[ENTRY_SECRET_MAX];
   uint8_t nonce[12];
   uint8_t tag[16];
+  uint16_t secret_len;
   bool occupied;
-  uint8_t _padding[3]; // Align to 128 bytes
+  uint8_t _padding[1]; // Align to 128 bytes
 } vault_entry_t;
 
 typedef struct {
@@ -52,6 +53,10 @@ bool vault_set(const char *name, const uint8_t *secret, uint16_t len);
 
 // Get entry (returns encrypted data)
 bool vault_get(const char *name, vault_entry_t *out_entry);
+
+// Get entry (returns decrypted secret)
+bool vault_get_decrypted(const char *name, uint8_t *out_secret,
+                         uint16_t *out_len);
 
 // Delete entry
 bool vault_delete(const char *name);
