@@ -102,6 +102,94 @@ async function unlockVault() {
   }
 }
 
+async function renderVault() {
+  const vaultList = document.querySelector("#vault-list");
+  // Keep the 'Add New' card, but clear others if needed
+  // For simplicity, we regenerate all but the add card
+  const addCard = document.querySelector("#add-new-card");
+
+  try {
+    const names = await invoke("list_vault");
+
+    // Clear existing dynamic cards
+    const existingCards = vaultList.querySelectorAll(".vault-card:not(#add-new-card)");
+    existingCards.forEach(c => c.remove());
+
+    names.forEach(name => {
+      const card = document.createElement("div");
+      card.className = "vault-card";
+      card.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
+          <div class="card-icon" style="margin-bottom: 0;">${name[0].toUpperCase()}</div>
+          <div style="display: flex; gap: 8px;">
+            <button class="edit-btn" title="Edit entry" style="background: none; border: none; cursor: pointer; color: var(--text-secondary); opacity: 0.5; transition: opacity 0.2s;">✏️</button>
+            <button class="delete-btn" title="Delete entry" style="background: none; border: none; cursor: pointer; color: var(--text-secondary); opacity: 0.5; transition: opacity 0.2s;">🗑️</button>
+          </div>
+        </div>
+        <div class="card-title">${name}</div>
+        <div class="card-desc">Hardware Protected</div>
+        <button class="btn-micro type-btn" data-text="${name}">⌨️ Type</button>
+      `;
+
+      // Edit logic
+      card.querySelector(".edit-btn").addEventListener("click", (e) => {
+        e.stopPropagation();
+        document.querySelector("#add-modal").classList.remove("hidden");
+        document.querySelector("#add-name").value = name;
+        document.querySelector("#add-name").disabled = true; // Cannot rename yet
+        document.querySelector("#save-add-btn").textContent = "Update Entry";
+      });
+
+      // Delete logic
+      card.querySelector(".delete-btn").addEventListener("click", async (e) => {
+        e.stopPropagation();
+        if (confirm(`Delete "${name}"? This cannot be undone.`)) {
+          try {
+            await invoke("delete_vault_entry", { name });
+            await renderVault();
+          } catch (err) {
+            alert("Delete failed: " + err);
+          }
+        }
+      });
+
+      // Auto-type logic
+      card.querySelector(".type-btn").addEventListener("click", async (e) => {
+        e.stopPropagation();
+        try {
+          await invoke("type_text", { text: name });
+        } catch (err) {
+          console.error(err);
+        }
+      });
+
+      vaultList.insertBefore(card, addCard);
+    });
+  } catch (err) {
+    console.error("Failed to list vault:", err);
+  }
+}
+
+async function saveVaultEntry() {
+  const name = document.querySelector("#add-name").value;
+  const secret = document.querySelector("#add-secret").value;
+
+  if (!name || !secret) {
+    alert("Please fill all fields");
+    return;
+  }
+
+  try {
+    await invoke("add_vault_entry", { name, secret });
+    document.querySelector("#add-modal").classList.add("hidden");
+    document.querySelector("#add-name").value = "";
+    document.querySelector("#add-secret").value = "";
+    await renderVault();
+  } catch (err) {
+    alert("Failed to save: " + err);
+  }
+}
+
 window.addEventListener("DOMContentLoaded", () => {
   statusTextEl = document.querySelector("#status-text");
   statusDotEl = document.querySelector("#status-dot");
@@ -116,6 +204,7 @@ window.addEventListener("DOMContentLoaded", () => {
     mainTitle.textContent = "My Vault";
     document.querySelectorAll(".sidebar .nav-item").forEach(i => i.classList.remove("active"));
     e.target.classList.add("active");
+    renderVault();
   });
 
   document.querySelector("#nav-totp").addEventListener("click", (e) => {
@@ -135,21 +224,25 @@ window.addEventListener("DOMContentLoaded", () => {
   document.querySelector("#ping-btn").addEventListener("click", () => pingHardware());
   document.querySelector("#refresh-btn").addEventListener("click", () => updateStatus());
 
-  document.querySelectorAll(".type-btn").forEach(btn => {
-    btn.addEventListener("click", async (e) => {
-      const text = e.target.getAttribute("data-text");
-      try {
-        await invoke("type_text", { text });
-      } catch (err) {
-        console.error(err);
-      }
-    });
+  // Modal handlers
+  document.querySelector("#add-new-card").addEventListener("click", () => {
+    document.querySelector("#add-modal").classList.remove("hidden");
   });
+
+  document.querySelector("#cancel-add-btn").addEventListener("click", () => {
+    closeModal();
+  });
+
+  document.querySelector("#save-add-btn").addEventListener("click", () => saveVaultEntry());
 
   // Initial update
   updateStatus();
   updateSecurityStatus();
   startTotpTimer();
+
+  // Render vault if disconnected but we want to show it when connected
+  // For now Just call it
+  renderVault();
 
   // Poll status every 5 seconds
   setInterval(updateStatus, 5000);

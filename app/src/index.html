@@ -63,8 +63,9 @@
             <div class="card-desc">zequinha-taveira</div>
             <button class="btn-micro type-btn" data-text="GitSecret456!">⌨️ Type</button>
           </div>
-          <div class="vault-card">
-            <div class="card-icon">+</div>
+          <div class="vault-card" id="add-new-card"
+            style="cursor: pointer; border: 1px dashed var(--border-color); opacity: 0.8;">
+            <div class="card-icon" style="background: var(--surface-color);">+</div>
             <div class="card-title">Add New</div>
             <div class="card-desc">Click to add a new secret</div>
           </div>
@@ -75,6 +76,33 @@
           <button id="refresh-btn" class="btn-primary"
             style="background-color: var(--surface-color); border: 1px solid var(--border-color);">Refresh
             Status</button>
+        </div>
+      </div>
+
+      <!-- Add New Entry Modal -->
+      <div id="add-modal" class="modal-overlay hidden">
+        <div class="modal-box">
+          <h3>Add New Login</h3>
+          <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 20px;">The secret will be encrypted
+            before sending to hardware.</p>
+
+          <label for="add-name"
+            style="display: block; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px;">Service
+            Name</label>
+          <input type="text" id="add-name" placeholder="GitHub, Google, etc."
+            style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--surface-color); color: white; margin-bottom: 16px;" />
+
+          <label for="add-secret"
+            style="display: block; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px;">Password /
+            Secret</label>
+          <input type="password" id="add-secret" placeholder="Your password"
+            style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--surface-color); color: white; margin-bottom: 24px;" />
+
+          <div style="display: flex; justify-content: flex-end; gap: 12px;">
+            <button id="cancel-add-btn" class="btn-micro" style="background: var(--surface-color);">Cancel</button>
+            <button id="save-add-btn" class="btn-micro" style="background: var(--accent-light); color: black;">Save to
+              Hardware</button>
+          </div>
         </div>
       </div>
 

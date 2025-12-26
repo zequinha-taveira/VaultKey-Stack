@@ -12,6 +12,8 @@ typedef struct {
 } vault_storage_t;
 
 static vault_storage_t vault_data;
+static uint8_t session_key[32];
+static bool session_active = false;
 
 #define VAULT_STORAGE_SIZE sizeof(vault_data)
 #define VAULT_ERASE_SIZE                                                       \
@@ -42,12 +44,37 @@ bool vault_init(void) {
   vault_load_from_flash();
 
   if (vault_data.security.magic != SECURITY_STATE_MAGIC) {
-    memset(&vault_data, 0, sizeof(vault_data));
-    vault_data.security.magic = SECURITY_STATE_MAGIC;
-    vault_sync_to_flash();
+    vault_format();
   }
 
   return true;
+}
+
+void vault_set_session_key(const uint8_t *key) {
+  memcpy(session_key, key, 32);
+  session_active = true;
+}
+
+bool vault_has_session_key(void) { return session_active; }
+
+const uint8_t *vault_get_session_key(void) {
+  return session_active ? session_key : NULL;
+}
+
+bool vault_verify_pin(const uint8_t *key) {
+  uint8_t plaintext[16];
+  uint8_t iv[12] = {0}; // Fixed IV for canary is acceptable as it's a constant
+
+  if (vk_crypto_decrypt(key, vault_data.security.canary, 16, iv,
+                        vault_data.security.canary_tag, plaintext)) {
+    return memcmp(plaintext, "VK_VALID_LOGIN!!", 16) == 0;
+  }
+  return false;
+}
+
+bool vault_is_setup(void) {
+  uint8_t zero[16] = {0};
+  return memcmp(vault_data.security.canary, zero, 16) != 0;
 }
 
 bool vault_is_locked(void) { return vault_data.security.is_locked; }
@@ -99,10 +126,10 @@ bool vault_set(const char *name, const uint8_t *secret, uint16_t len) {
 
   strncpy(vault_data.entries[slot].name, name, ENTRY_NAME_MAX);
 
-  // Real Encryption
-  uint8_t master_key[32]; // Derived earlier or stored in session
-  memset(master_key, 0x42,
-         32); // Mock for now until Phase 11 auth is fully wired
+  // Use Real Session Key
+  const uint8_t *master_key = vault_get_session_key();
+  if (!master_key)
+    return false;
 
   uint8_t iv[12];
   // Simple deterministic IV for demo, should be random in production
@@ -146,5 +173,9 @@ bool vault_delete(const char *name) {
 void vault_format(void) {
   memset(&vault_data, 0, sizeof(vault_data));
   vault_data.security.magic = SECURITY_STATE_MAGIC;
+
+  // Set up a default canary for the first "login" if needed,
+  // but usually UI should do this on first set-pin.
+  // For now, let's just sync the zeroed state.
   vault_sync_to_flash();
 }

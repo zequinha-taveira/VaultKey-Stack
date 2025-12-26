@@ -34,10 +34,23 @@ void tud_cdc_rx_cb(uint8_t itf) {
           tud_cdc_write(res_buf, res_len);
           tud_cdc_write_flush();
         } else {
-          // Mock comparison for demo
-          bool success = memcmp(packet.payload,
-                                "expected_key_placeholder_32bytes", 32) == 0;
-          vault_report_auth_result(success);
+          bool success = false;
+          if (!vault_is_setup()) {
+            // First run: Initialize canary with this key
+            success = vault_setup_canary(packet.payload);
+            if (success) {
+              vault_set_session_key(packet.payload);
+            }
+          } else {
+            // Standard login: Verify against canary
+            success = vault_verify_pin(packet.payload);
+            if (success) {
+              vault_set_session_key(packet.payload);
+              vault_report_auth_result(true);
+            } else {
+              vault_report_auth_result(false);
+            }
+          }
 
           uint8_t res_buf[64];
           uint16_t res_len = vk_protocol_create_packet(
@@ -47,6 +60,26 @@ void tud_cdc_rx_cb(uint8_t itf) {
           tud_cdc_write(res_buf, res_len);
           tud_cdc_write_flush();
         }
+      }
+    } else if (packet.type == VK_MSG_VAULT_DEL_REQ) {
+      // Payload: [NameLen:1][Name:N]
+      if (packet.payload_len > 1) {
+        uint8_t name_len = packet.payload[0];
+        char name[ENTRY_NAME_MAX];
+        uint8_t safe_name_len =
+            name_len < (ENTRY_NAME_MAX - 1) ? name_len : (ENTRY_NAME_MAX - 1);
+        memcpy(name, &packet.payload[1], safe_name_len);
+        name[safe_name_len] = '\0';
+
+        bool success = vault_delete(name);
+
+        uint8_t res_buf[64];
+        uint16_t res_len = vk_protocol_create_packet(
+            VK_MSG_VAULT_DEL_RES, packet.id,
+            (const uint8_t *)(success ? "OK" : "FAIL"), success ? 2 : 4,
+            res_buf, sizeof(res_buf));
+        tud_cdc_write(res_buf, res_len);
+        tud_cdc_write_flush();
       }
     } else if (packet.type == VK_MSG_GET_SECURITY_REQ) {
       uint8_t status[5];
@@ -78,6 +111,53 @@ void tud_cdc_rx_cb(uint8_t itf) {
             VK_MSG_TOTP_RES, packet.id, (const uint8_t *)code_str, 6, res_buf,
             sizeof(res_buf));
         if (res_len > 0) {
+          tud_cdc_write(res_buf, res_len);
+          tud_cdc_write_flush();
+        }
+      }
+    } else if (packet.type == VK_MSG_VAULT_LIST_REQ) {
+      char names[MAX_ENTRIES][ENTRY_NAME_MAX];
+      int count = vault_list(names, MAX_ENTRIES);
+
+      uint8_t list_payload[512]; // Buffer for packed names
+      uint16_t offset = 0;
+      for (int i = 0; i < count; i++) {
+        uint8_t name_len = (uint8_t)strlen(names[i]);
+        if (offset + 1 + name_len > sizeof(list_payload))
+          break;
+        list_payload[offset++] = name_len;
+        memcpy(&list_payload[offset], names[i], name_len);
+        offset += name_len;
+      }
+
+      uint8_t res_buf[1024]; // Larger response buffer
+      uint16_t res_len = vk_protocol_create_packet(
+          VK_MSG_VAULT_LIST_RES, packet.id, list_payload, offset, res_buf,
+          sizeof(res_buf));
+      tud_cdc_write(res_buf, res_len);
+      tud_cdc_write_flush();
+    } else if (packet.type == VK_MSG_VAULT_ADD_REQ) {
+      // Payload: [NameLen:1][Name:N][SecretLen:1][Secret:S]
+      if (packet.payload_len > 2) {
+        uint8_t name_len = packet.payload[0];
+        char name[ENTRY_NAME_MAX];
+        uint8_t safe_name_len =
+            name_len < (ENTRY_NAME_MAX - 1) ? name_len : (ENTRY_NAME_MAX - 1);
+        memcpy(name, &packet.payload[1], safe_name_len);
+        name[safe_name_len] = '\0';
+
+        uint16_t secret_offset = 1 + name_len;
+        if (secret_offset < packet.payload_len) {
+          uint8_t secret_len = packet.payload[secret_offset];
+          uint8_t *secret = &packet.payload[secret_offset + 1];
+
+          bool success = vault_set(name, secret, secret_len);
+
+          uint8_t res_buf[64];
+          uint16_t res_len = vk_protocol_create_packet(
+              VK_MSG_VAULT_ADD_RES, packet.id,
+              (const uint8_t *)(success ? "OK" : "FAIL"), success ? 2 : 4,
+              res_buf, sizeof(res_buf));
           tud_cdc_write(res_buf, res_len);
           tud_cdc_write_flush();
         }

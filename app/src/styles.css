@@ -183,6 +183,10 @@ header {
   transition: opacity 0.2s;
 }
 
+.hidden {
+  display: none !important;
+}
+
 .btn-micro:hover {
   opacity: 0.8;
 }

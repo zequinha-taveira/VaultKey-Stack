@@ -84,11 +84,58 @@ async fn get_security_status() -> Result<(u32, bool), String> {
 }
 
 #[tauri::command]
+async fn list_vault() -> Result<Vec<String>, String> {
+    // VK_MSG_VAULT_LIST_REQ = 20
+    let response = send_command(20, vec![]).await?;
+    let mut names = Vec::new();
+    let mut offset = 0;
+    while offset < response.len() {
+        let name_len = response[offset] as usize;
+        offset += 1;
+        if offset + name_len > response.len() {
+            break;
+        }
+        let name = String::from_utf8_lossy(&response[offset..offset + name_len]).to_string();
+        names.push(name);
+        offset += name_len;
+    }
+    Ok(names)
+}
+
+#[tauri::command]
+async fn add_vault_entry(name: String, secret: String) -> Result<(), String> {
+    let mut payload = Vec::new();
+    let name_bytes = name.as_bytes();
+    payload.push(name_bytes.len() as u8);
+    payload.extend_from_slice(name_bytes);
+
+    let secret_bytes = secret.as_bytes();
+    payload.push(secret_bytes.len() as u8);
+    payload.extend_from_slice(secret_bytes);
+
+    // VK_MSG_VAULT_ADD_REQ = 24
+    let _response = send_command(24, payload).await?;
+    Ok(())
+}
+
+#[tauri::command]
 async fn type_text(text: String) -> Result<(), String> {
     let payload = text.as_bytes().to_vec();
-    
+
     // VK_MSG_KEYB_TYPE_REQ = 14
     let _response = send_command(14, payload).await?;
+    Ok(())
+}
+
+#[tauri::command]
+async fn delete_vault_entry(name: String) -> Result<(), String> {
+    let mut payload = Vec::new();
+    let name_bytes = name.as_bytes();
+    payload.push(name_bytes.len() as u8);
+    payload.extend_from_slice(name_bytes);
+
+    // VK_MSG_VAULT_DEL_REQ = 26
+    let _response = send_command(26, payload).await?;
     Ok(())
 }
 
@@ -103,7 +150,10 @@ pub fn run() {
             derive_key, 
             get_totp,
             type_text,
-            get_security_status
+            get_security_status,
+            list_vault,
+            add_vault_entry,
+            delete_vault_entry
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

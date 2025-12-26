@@ -21,12 +21,22 @@ typedef struct {
   uint32_t fail_count;
   bool is_locked;
   uint32_t magic;
-  uint8_t _padding[120]; // Align to 128 bytes
+  uint8_t canary[16];     // Encrypted "VERIFY" block
+  uint8_t canary_tag[16]; // Auth tag for canary
+  uint8_t _padding[88];   // Align to 128 bytes
 } security_state_t;
 
 #define SECURITY_STATE_MAGIC 0x564B5353 // "VKSS"
 
+// Session API
+void vault_set_session_key(const uint8_t *key);
+bool vault_has_session_key(void);
+const uint8_t *vault_get_session_key(void);
+bool vault_verify_pin(const uint8_t *key);
+bool vault_setup_canary(const uint8_t *key);
+
 // Security API
+bool vault_is_setup(void);
 bool vault_is_locked(void);
 uint32_t vault_get_fail_count(void);
 void vault_report_auth_result(bool success);
