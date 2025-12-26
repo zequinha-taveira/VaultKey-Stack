@@ -22,6 +22,8 @@ add_executable(vaultkey_firmware
     lib/cb0r/cb0r.c
     lib/nacl/tweetnacl.c
     lib/sha256/sha256.c
+    lib/p256/p256-m.c
+    lib/p256/p256_rng.c
 )
 
 # Include directories
@@ -31,6 +33,7 @@ target_include_directories(vaultkey_firmware PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/lib/cb0r
     ${CMAKE_CURRENT_LIST_DIR}/lib/nacl
     ${CMAKE_CURRENT_LIST_DIR}/lib/sha256
+    ${CMAKE_CURRENT_LIST_DIR}/lib/p256
 )
 
 # Pull in common dependencies

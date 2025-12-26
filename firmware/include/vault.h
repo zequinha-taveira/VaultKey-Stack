@@ -36,9 +36,11 @@ typedef struct {
   uint32_t fail_count;
   bool is_locked;
   uint32_t magic;
-  uint8_t canary[16];     // Encrypted "VERIFY" block
-  uint8_t canary_tag[16]; // Auth tag for canary
-  uint8_t _padding[88];   // Align to 128 bytes
+  uint8_t canary[16];        // Encrypted "VERIFY" block
+  uint8_t canary_tag[16];    // Auth tag for canary
+  uint8_t fido_pin_hash[32]; // SHA-256 of LEFT(SHA-256(PIN), 16)
+  bool fido_pin_set;
+  uint8_t _padding[55]; // Align to 128 bytes
 } security_state_t;
 
 #define SECURITY_STATE_MAGIC 0x564B5353 // "VKSS"
@@ -85,5 +87,10 @@ int vault_fido_list_by_rp(const char *rp_id, vk_fido_cred_t *out_creds,
                           int max_count);
 int vault_fido_list_all(vk_fido_cred_t *out_creds, int max_count);
 bool vault_fido_delete(const uint8_t *cred_id);
+
+// FIDO2 PIN API
+bool vault_fido_set_pin(const uint8_t pin_hash[32]);
+bool vault_fido_verify_pin(const uint8_t pin_hash[32]);
+bool vault_fido_has_pin(void);
 
 #endif // VAULT_H

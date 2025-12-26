@@ -270,3 +270,18 @@ int vault_fido_list_by_rp(const char *rp_id, vk_fido_cred_t *out_creds,
     }
     return false;
   }
+
+  bool vault_fido_set_pin(const uint8_t pin_hash[32]) {
+    memcpy(vault_data.security.fido_pin_hash, pin_hash, 32);
+    vault_data.security.fido_pin_set = true;
+    vault_sync_to_flash();
+    return true;
+  }
+
+  bool vault_fido_verify_pin(const uint8_t pin_hash[32]) {
+    if (!vault_data.security.fido_pin_set)
+      return false;
+    return memcmp(vault_data.security.fido_pin_hash, pin_hash, 32) == 0;
+  }
+
+  bool vault_fido_has_pin(void) { return vault_data.security.fido_pin_set; }

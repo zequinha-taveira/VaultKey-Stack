@@ -1,5 +1,6 @@
 #include "vk_fido.h"
 #include "cb0r.h"
+#include "p256-m.h"
 #include "sha256.h"
 #include "tusb.h"
 #include "tweetnacl.h"
@@ -8,7 +9,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
-
 
 // --- Context and Constants ---
 
@@ -25,6 +25,12 @@ typedef struct {
 static u2fhid_context_t fido_ctx = {0};
 static uint32_t next_cid = 0x11223344;
 
+// Client PIN ephemeral key state
+static uint8_t pin_key_priv[32] = {0};
+static uint8_t pin_key_pub[64] = {0};
+static bool pin_key_generated = false;
+static uint8_t pin_token[32] = {0};
+
 #define VK_AAGUID                                                              \
   {0x56, 0x4B, 0x53, 0x54, 0x41, 0x43, 0x4B, 0x01,                             \
    0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}
@@ -36,9 +42,14 @@ static bool vk_fido_wait_for_user_presence(void) {
 }
 
 #define CTAP_STATUS_OK 0x00
-#define CTAP_ERR_INVALID_CBOR 0x22
-#define CTAP_ERR_NO_CREDENTIALS 0x2b
+#define CTAP_ERR_INVALID_CBOR 0x12
+#define CTAP_ERR_MISSING_PARAM 0x14
+#define CTAP_ERR_PIN_INVALID 0x31
+#define CTAP_ERR_PIN_NOT_SET 0x35
+#define CTAP_ERR_PIN_REQUIRED 0x36
+#define CTAP_ERR_NO_CREDENTIALS 0x2E
 #define CTAP_ERR_KEY_STORE_FULL 0x27
+#define CTAP_ERR_NOT_ALLOWED 0x30
 
 #define FIDO_ITF_INDEX 2
 
@@ -249,6 +260,101 @@ static void vk_fido_dispatch_ctap2(uint32_t cid, uint8_t *payload,
     } else
       vk_fido_send_response(cid, U2FHID_MSG, (uint8_t[]){CTAP_ERR_INVALID_CBOR},
                             1);
+  } else if (ctap_cmd == CTAP2_CMD_CLIENT_PIN) {
+    // Client PIN protocol implementation (pinProtocol 1)
+    cb0r_s map, subcmd_val;
+    if (cb0r_read(data, data_len, &map) &&
+        cb0r_find(&map, CB0R_INT, 0x01, NULL, &subcmd_val)) {
+      uint8_t subcmd = (uint8_t)cb0r_get_int(&subcmd_val);
+
+      if (subcmd == 0x01) { // getRetries
+        uint8_t res[8];
+        res[0] = 0x00; // Status OK
+        res[1] = 0xA1; // Map(1)
+        res[2] = 0x03; // key 3 = retries
+        res[3] = 0x08; // 8 retries remaining (hardcoded for now)
+        vk_fido_send_response(cid, U2FHID_MSG, res, 4);
+
+      } else if (subcmd == 0x02) { // getKeyAgreement
+        // Generate or reuse ephemeral P-256 keypair for ECDH
+        if (!pin_key_generated) {
+          p256_gen_keypair(pin_key_priv, pin_key_pub);
+          pin_key_generated = true;
+        }
+        // Return COSE_Key with public key
+        uint8_t res[128];
+        size_t off = 0;
+        res[off++] = 0x00; // Status OK
+        res[off++] = 0xA1; // Map(1)
+        res[off++] = 0x01; // key 1 = keyAgreement
+        // COSE Key: kty=EC2, crv=P-256, x, y
+        res[off++] = 0xA5; // Map(5)
+        res[off++] = 0x01;
+        res[off++] = 0x02; // kty: EC2
+        res[off++] = 0x03;
+        res[off++] = 0x38;
+        res[off++] = 0x18; // alg: ECDH-ES+HKDF (-25)
+        res[off++] = 0x20;
+        res[off++] = 0x01; // crv: P-256
+        res[off++] = 0x21;
+        res[off++] = 0x58;
+        res[off++] = 0x20;
+        memcpy(&res[off], pin_key_pub, 32);
+        off += 32; // x
+        res[off++] = 0x22;
+        res[off++] = 0x58;
+        res[off++] = 0x20;
+        memcpy(&res[off], pin_key_pub + 32, 32);
+        off += 32; // y
+        vk_fido_send_response(cid, U2FHID_MSG, res, off);
+
+      } else if (subcmd == 0x03) { // setPIN
+        // Requires keyAgreement, pinAuth, newPinEnc - simplified stub
+        if (!pin_key_generated) {
+          vk_fido_send_response(cid, U2FHID_MSG,
+                                (uint8_t[]){CTAP_ERR_MISSING_PARAM}, 1);
+        } else {
+          // In a real implementation: ECDH with platform key, decrypt
+          // newPinEnc, verify pinAuth, hash and store PIN For now, mark PIN as
+          // set (demo)
+          uint8_t demo_hash[32] = {0}; // Would be derived from decrypted PIN
+          vk_crypto_get_random(demo_hash, 32);
+          vault_fido_set_pin(demo_hash);
+          vk_fido_send_response(cid, U2FHID_MSG, (uint8_t[]){CTAP_STATUS_OK},
+                                1);
+        }
+
+      } else if (subcmd == 0x05) { // getPinToken
+        // Requires keyAgreement and pinHashEnc
+        if (!vault_fido_has_pin()) {
+          vk_fido_send_response(cid, U2FHID_MSG,
+                                (uint8_t[]){CTAP_ERR_PIN_NOT_SET}, 1);
+        } else if (!pin_key_generated) {
+          vk_fido_send_response(cid, U2FHID_MSG,
+                                (uint8_t[]){CTAP_ERR_MISSING_PARAM}, 1);
+        } else {
+          // Generate a random pinToken for this session
+          vk_crypto_get_random(pin_token, 32);
+          // In real impl: encrypt pinToken with shared secret
+          // For now, return raw (INSECURE - demo only)
+          uint8_t res[48];
+          res[0] = 0x00; // Status OK
+          res[1] = 0xA1; // Map(1)
+          res[2] = 0x02; // key 2 = pinToken
+          res[3] = 0x58;
+          res[4] = 0x20; // bstr(32)
+          memcpy(&res[5], pin_token, 32);
+          vk_fido_send_response(cid, U2FHID_MSG, res, 37);
+        }
+
+      } else {
+        vk_fido_send_response(cid, U2FHID_MSG,
+                              (uint8_t[]){CTAP_ERR_NOT_ALLOWED}, 1);
+      }
+    } else {
+      vk_fido_send_response(cid, U2FHID_MSG, (uint8_t[]){CTAP_ERR_INVALID_CBOR},
+                            1);
+    }
   } else
     vk_fido_send_response(cid, U2FHID_ERROR, (uint8_t[]){0x01}, 1);
 }
