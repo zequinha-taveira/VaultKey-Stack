@@ -37,6 +37,13 @@ static uint8_t pin_token[32] = {0};
 
 extern bool vk_main_wait_for_button(uint32_t timeout_ms);
 
+void vk_fido_reset_session(void) {
+  vk_crypto_zeroize(pin_key_priv, 32);
+  vk_crypto_zeroize(pin_key_pub, 64);
+  vk_crypto_zeroize(pin_token, 32);
+  pin_key_generated = false;
+}
+
 static bool vk_fido_wait_for_user_presence(void) {
   // Hardware implementation: check button press with 30s timeout.
   return vk_main_wait_for_button(30000);

@@ -17,6 +17,8 @@ typedef struct {
 static vault_storage_t vault_data;
 static uint8_t session_key[32];
 static bool session_active = false;
+static uint32_t last_activity_ms = 0;
+static uint32_t autolock_timeout_ms = 300000; // 5 minutes default
 
 #define VAULT_STORAGE_SIZE sizeof(vault_data)
 #define VAULT_ERASE_SIZE                                                       \
@@ -56,6 +58,21 @@ bool vault_init(void) {
 void vault_set_session_key(const uint8_t *key) {
   memcpy(session_key, key, 32);
   session_active = true;
+  last_activity_ms = board_millis();
+}
+
+void vault_update_activity(void) {
+  if (session_active) {
+    last_activity_ms = board_millis();
+  }
+}
+
+void vault_check_autolock(void) {
+  if (session_active &&
+      (board_millis() - last_activity_ms > autolock_timeout_ms)) {
+    vk_crypto_zeroize(session_key, 32);
+    session_active = false;
+  }
 }
 
 bool vault_has_session_key(void) { return session_active; }

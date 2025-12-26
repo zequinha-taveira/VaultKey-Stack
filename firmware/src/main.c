@@ -69,6 +69,7 @@ void tud_cdc_rx_cb(uint8_t itf) {
 
   vk_packet_t packet;
   if (vk_protocol_parse(buf, (uint16_t)count, &packet)) {
+    vault_update_activity();
     if (packet.type == VK_MSG_PING) {
       uint8_t res_buf[64];
       uint16_t res_len = vk_protocol_create_packet(VK_MSG_PONG, packet.id,
@@ -241,6 +242,16 @@ void tud_cdc_rx_cb(uint8_t itf) {
           tud_cdc_write_flush();
         }
       }
+    } else if (packet.type == VK_MSG_LOCK_REQ) {
+      vk_crypto_zeroize(session_key, 32);
+      session_active = false;
+      vk_fido_reset_session();
+      uint8_t res_buf[64];
+      uint16_t res_len = vk_protocol_create_packet(VK_MSG_LOCK_RES, packet.id,
+                                                   (const uint8_t *)"OK", 2,
+                                                   res_buf, sizeof(res_buf));
+      tud_cdc_write(res_buf, res_len);
+      tud_cdc_write_flush();
     }
   }
 }
@@ -334,6 +345,7 @@ void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id,
   if (itf == 0) {
     vk_packet_t packet;
     if (vk_protocol_parse(buffer, (uint16_t)bufsize, &packet)) {
+      vault_update_activity();
       // Logic from CDC handler could be shared here
     }
   }
@@ -368,6 +380,7 @@ int main() {
   while (1) {
     tud_task(); // tinyusb device task
     led_task();
+    vault_check_autolock();
   }
 
   return 0;

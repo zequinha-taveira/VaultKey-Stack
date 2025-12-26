@@ -34,6 +34,8 @@ typedef enum {
   VK_MSG_FIDO_PIN_STATUS_RES = 45,
   VK_MSG_FIDO_SET_PIN_REQ = 46,
   VK_MSG_FIDO_SET_PIN_RES = 47,
+  VK_MSG_LOCK_REQ = 50,
+  VK_MSG_LOCK_RES = 51,
   VK_MSG_ERROR = 255
 } vk_msg_type_t;
 

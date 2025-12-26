@@ -338,6 +338,16 @@ window.addEventListener("DOMContentLoaded", () => {
   });
   document.querySelector("#save-pin-btn").addEventListener("click", () => saveFidoPin());
 
+  document.querySelector("#lock-vault-btn").addEventListener("click", async () => {
+    try {
+      // VK_MSG_LOCK_REQ = 50
+      await invoke("send_command", { msgType: 50, payload: [] });
+      window.location.reload(); // Quickest way to reset all UI state
+    } catch (err) {
+      alert("Lock failed: " + err);
+    }
+  });
+
   document.querySelector("#auth-btn").addEventListener("click", () => unlockVault());
   document.querySelector("#pin-input").addEventListener("keypress", (e) => {
     if (e.key === "Enter") unlockVault();
