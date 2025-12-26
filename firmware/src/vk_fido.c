@@ -283,7 +283,7 @@ static void vk_fido_dispatch_ctap2(uint32_t cid, uint8_t *payload,
     cb0r_s map, subcmd_val;
     if (cb0r_read(data, data_len, &map) &&
         cb0r_find(&map, CB0R_INT, 0x01, NULL, &subcmd_val)) {
-      uint8_t subcmd = (uint8_t)cb0r_get_int(&subcmd_val);
+      uint8_t subcmd = (uint8_t)subcmd_val.value;
 
       if (subcmd == 0x01) { // getRetries
         uint8_t res[8];

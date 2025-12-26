@@ -50,4 +50,6 @@ void vk_fido_handle_report(uint8_t const *report);
 void vk_fido_send_response(uint32_t cid, uint8_t cmd, uint8_t const *data,
                            uint16_t len);
 
+void vk_fido_reset_session(void);
+
 #endif // VK_FIDO_H

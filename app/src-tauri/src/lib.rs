@@ -11,10 +11,7 @@ fn greet(name: &str) -> String {
 
 #[tauri::command]
 fn derive_key(pin: String, salt: Vec<u8>) -> Result<Vec<u8>, String> {
-    use argon2::{
-        password_hash::{PasswordHasher, SaltString},
-        Argon2,
-    };
+    use argon2::Argon2;
     use zeroize::Zeroizing;
 
     let pin = Zeroizing::new(pin);
@@ -136,6 +133,19 @@ async fn get_vault_secret(name: String) -> Result<String, String> {
 
     // VK_MSG_VAULT_GET_REQ = 22
     let response = send_command(22, payload).await?;
+    Ok(String::from_utf8_lossy(&response).to_string())
+}
+
+#[tauri::command]
+async fn get_device_status() -> Result<(u32, bool), String> {
+    get_security_status().await
+}
+
+#[tauri::command]
+async fn get_totp(timestamp: u64) -> Result<String, String> {
+    let ts_bytes = timestamp.to_ne_bytes();
+    // VK_MSG_TOTP_REQ = 30
+    let response = send_command(30, ts_bytes.to_vec()).await?;
     Ok(String::from_utf8_lossy(&response).to_string())
 }
 

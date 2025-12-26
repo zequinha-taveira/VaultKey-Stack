@@ -2,7 +2,9 @@
 #define VK_CRYPTO_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
+
 
 // AES-256-GCM Settings
 #define AES_KEY_SIZE 32

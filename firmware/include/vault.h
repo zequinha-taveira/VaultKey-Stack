@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #define MAX_ENTRIES 100
+#define MAX_FIDO_CREDS 10
 #define ENTRY_NAME_MAX 32
 #define ENTRY_SECRET_MAX 64
 
@@ -79,6 +80,14 @@ bool vault_delete(const char *name);
 
 // Format vault (danger!)
 void vault_format(void);
+
+// Session Management
+void vault_lock(void);
+bool vault_unlock(const char *pin);
+void vault_update_activity(void);
+void vault_check_autolock(void);
+uint32_t vault_get_fail_count(void);
+bool vault_is_locked(void);
 
 // FIDO2 API
 bool vault_fido_add(const vk_fido_cred_t *cred);

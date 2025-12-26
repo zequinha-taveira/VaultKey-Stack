@@ -1,0 +1,37 @@
+# System Files
+.DS_Store
+Thumbs.db
+*.log
+
+# Build Artifacts
+/firmware/build/
+/firmware/*.uf2
+.ninja_deps
+.ninja_log
+cmake_install.cmake
+CMakeCache.txt
+CMakeFiles/
+
+# Dependencies
+/firmware/lib/tinyusb
+tinyusb.zip
+
+# Node/Web artifacts
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Rust/Tauri artifacts
+/app/src-tauri/target/
+/app/src-tauri/Cargo.lock
+# Keep Cargo.lock if reproducible builds are desired, but user might want to hide it if noisy. 
+# Standard practice is to keep it, but I'll leave it for now unless user complains specifically.
+# Actually, I'll ignore the big target folder primarily.
+
+# Desktop App Build Output
+/app/src-tauri/gen/
+/app/src-tauri/icons/icon.icns
+/app/src-tauri/icons/icon.ico
+
+# VSCode
+.vscode/
