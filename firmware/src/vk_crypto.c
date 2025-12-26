@@ -1,5 +1,6 @@
 #include "vk_crypto.h"
 #include "aes.h"
+#include "pico/rand.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -161,4 +162,12 @@ void vk_crypto_zeroize(void *v, size_t n) {
   volatile uint8_t *p = (uint8_t *)v;
   while (n--)
     *p++ = 0;
+}
+
+void vk_crypto_get_random(uint8_t *buffer, size_t len) {
+  for (size_t i = 0; i < len; i += 4) {
+    uint32_t val = get_rand_32();
+    size_t chunk = (len - i) < 4 ? (len - i) : 4;
+    memcpy(buffer + i, &val, chunk);
+  }
 }

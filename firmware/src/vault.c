@@ -134,8 +134,8 @@ bool vault_set(const char *name, const uint8_t *secret, uint16_t len) {
     return false;
 
   uint8_t iv[12];
-  // Simple deterministic IV for demo, should be random in production
-  memset(iv, slot, 12);
+  // Real random IV from TRNG
+  vk_crypto_get_random(iv, 12);
   memcpy(vault_data.entries[slot].nonce, iv, 12);
 
   if (!vk_crypto_encrypt(master_key, secret, len, iv,
