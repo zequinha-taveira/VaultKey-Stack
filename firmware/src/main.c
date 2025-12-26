@@ -187,27 +187,45 @@ void tud_cdc_rx_cb(uint8_t itf) {
           tud_cdc_write_flush();
         }
       }
-    } else if (packet.type == VK_MSG_KEYB_TYPE_REQ) {
-      if (packet.payload_len > 0) {
-        // Ensure null termination for the string
-        char text_to_type[128];
-        uint16_t copy_len = packet.payload_len < 127 ? packet.payload_len : 127;
-        memcpy(text_to_type, packet.payload, copy_len);
-        text_to_type[copy_len] = '\0';
-
-        vk_keyboard_type(text_to_type);
-
-        uint8_t res_buf[64];
-        uint16_t res_len = vk_protocol_create_packet(
-            VK_MSG_KEYB_TYPE_RES, packet.id, (const uint8_t *)"OK", 2, res_buf,
-            sizeof(res_buf));
-        if (res_len > 0) {
-          tud_cdc_write(res_buf, res_len);
-          tud_cdc_write_flush();
-        }
-      }
     }
   }
+}
+else if (packet.type == VK_MSG_FIDO_LIST_REQ) {
+  vk_fido_cred_t creds[MAX_FIDO_CREDS];
+  int count = vault_fido_list_all(creds, MAX_FIDO_CREDS);
+
+  uint8_t list_payload[1024];
+  uint16_t offset = 0;
+  for (int i = 0; i < count; i++) {
+    uint8_t rp_len = (uint8_t)strlen(creds[i].rp_id);
+    list_payload[offset++] = rp_len;
+    memcpy(&list_payload[offset], creds[i].rp_id, rp_len);
+    offset += rp_len;
+    list_payload[offset++] = 32; // cred_id len
+    memcpy(&list_payload[offset], creds[i].credential_id, 32);
+    offset += 32;
+  }
+
+  uint8_t res_buf[1024 + 64];
+  uint16_t res_len =
+      vk_protocol_create_packet(VK_MSG_FIDO_LIST_RES, packet.id, list_payload,
+                                offset, res_buf, sizeof(res_buf));
+  tud_cdc_write(res_buf, res_len);
+  tud_cdc_write_flush();
+}
+else if (packet.type == VK_MSG_FIDO_DEL_REQ) {
+  if (packet.payload_len == 32) {
+    bool success = vault_fido_delete(packet.payload);
+    uint8_t res_buf[64];
+    uint16_t res_len =
+        vk_protocol_create_packet(VK_MSG_FIDO_DEL_RES, packet.id,
+                                  (const uint8_t *)(success ? "OK" : "FAIL"),
+                                  success ? 2 : 4, res_buf, sizeof(res_buf));
+    tud_cdc_write(res_buf, res_len);
+    tud_cdc_write_flush();
+  }
+}
+}
 }
 
 #include "vk_fido.h"

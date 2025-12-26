@@ -29,7 +29,8 @@
       </div>
 
       <div class="nav-item active" id="nav-dashboard">🏠 Dashboard</div>
-      <div class="nav-item" id="nav-totp">🕒 Authenticators</div>
+      <div class="nav-item" id="nav-totp">🕒 TOTP Codes</div>
+      <div class="nav-item" id="nav-fido">🛡️ FIDO2 Keys</div>
       <div class="nav-item">🔒 All Items</div>
       <div class="nav-item">📎 Logins</div>
       <div class="nav-item">📝 Secure Notes</div>
@@ -115,6 +116,15 @@
               style="font-size: 2rem; font-weight: 700; color: var(--accent-color); letter-spacing: 4px; margin: 16px 0;">
               000000</div>
             <div class="card-desc">Refreshing in <span id="totp-timer">30</span>s</div>
+          </div>
+        </div>
+      </div>
+      <div id="fido-view" style="display: none;">
+        <div class="vault-grid" id="fido-list">
+          <div class="vault-card" style="border: 1px dashed var(--border-color); opacity: 0.6;">
+            <div class="card-icon">🏷️</div>
+            <div class="card-title">No FIDO2 keys found</div>
+            <div class="card-desc">Resident credentials will appear here</div>
           </div>
         </div>
       </div>

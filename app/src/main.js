@@ -174,6 +174,48 @@ async function renderVault() {
   }
 }
 
+async function renderFidoKeys() {
+  const fidoList = document.querySelector("#fido-list");
+  try {
+    const response = await invoke("send_command", { msgType: 40, payload: [] });
+    const data = new Uint8Array(response);
+    fidoList.innerHTML = "";
+
+    let offset = 0;
+    while (offset < data.length) {
+      const rpLen = data[offset++];
+      const rpId = new TextDecoder().decode(data.slice(offset, offset + rpLen));
+      offset += rpLen;
+      const credIdLen = data[offset++];
+      const credId = Array.from(data.slice(offset, offset + credIdLen));
+      offset += credIdLen;
+
+      const card = document.createElement("div");
+      card.className = "vault-card";
+      card.innerHTML = `
+        <div class="card-icon">🛡️</div>
+        <div class="card-title">${rpId}</div>
+        <div class="card-desc">FIDO2 Resident Key</div>
+        <button class="btn-micro del-fido-btn" style="background: var(--surface-color); border: 1px solid #ff4444; color: #ff4444; margin-top: 8px;">Delete</button>
+      `;
+      card.querySelector(".del-fido-btn").onclick = () => deleteFidoKey(credId, rpId);
+      fidoList.appendChild(card);
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function deleteFidoKey(credId, rpId) {
+  if (!confirm(`Delete FIDO2 key for ${rpId}?`)) return;
+  try {
+    await invoke("send_command", { msgType: 42, payload: credId });
+    renderFidoKeys();
+  } catch (err) {
+    alert("Delete failed: " + err);
+  }
+}
+
 async function saveVaultEntry() {
   const name = document.querySelector("#add-name").value;
   const secret = document.querySelector("#add-secret").value;
@@ -205,6 +247,7 @@ window.addEventListener("DOMContentLoaded", () => {
   document.querySelector("#nav-dashboard").addEventListener("click", (e) => {
     dashboardView.style.display = "block";
     totpView.style.display = "none";
+    document.querySelector("#fido-view").style.display = "none";
     mainTitle.textContent = "My Vault";
     document.querySelectorAll(".sidebar .nav-item").forEach(i => i.classList.remove("active"));
     e.target.classList.add("active");
@@ -214,10 +257,21 @@ window.addEventListener("DOMContentLoaded", () => {
   document.querySelector("#nav-totp").addEventListener("click", (e) => {
     dashboardView.style.display = "none";
     totpView.style.display = "block";
+    document.querySelector("#fido-view").style.display = "none";
     mainTitle.textContent = "Authenticators";
     document.querySelectorAll(".sidebar .nav-item").forEach(i => i.classList.remove("active"));
     e.target.classList.add("active");
     fetchTotp();
+  });
+
+  document.querySelector("#nav-fido").addEventListener("click", (e) => {
+    dashboardView.style.display = "none";
+    totpView.style.display = "none";
+    document.querySelector("#fido-view").style.display = "block";
+    mainTitle.textContent = "FIDO2 Resident Keys";
+    document.querySelectorAll(".sidebar .nav-item").forEach(i => i.classList.remove("active"));
+    e.target.classList.add("active");
+    renderFidoKeys();
   });
 
   document.querySelector("#auth-btn").addEventListener("click", () => unlockVault());

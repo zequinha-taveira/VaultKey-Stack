@@ -83,5 +83,7 @@ bool vault_fido_add(const vk_fido_cred_t *cred);
 bool vault_fido_get_by_id(const uint8_t *cred_id, vk_fido_cred_t *out_cred);
 int vault_fido_list_by_rp(const char *rp_id, vk_fido_cred_t *out_creds,
                           int max_count);
+int vault_fido_list_all(vk_fido_cred_t *out_creds, int max_count);
+bool vault_fido_delete(const uint8_t *cred_id);
 
 #endif // VAULT_H

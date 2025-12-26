@@ -243,6 +243,30 @@ int vault_fido_list_by_rp(const char *rp_id, vk_fido_cred_t *out_creds,
              sizeof(vk_fido_cred_t));
       count++;
     }
+    return count;
   }
-  return count;
-}
+
+  int vault_fido_list_all(vk_fido_cred_t * out_creds, int max_count) {
+    int count = 0;
+    for (int i = 0; i < MAX_FIDO_CREDS && count < max_count; i++) {
+      if (vault_data.fido_creds[i].occupied) {
+        memcpy(&out_creds[count], &vault_data.fido_creds[i],
+               sizeof(vk_fido_cred_t));
+        count++;
+      }
+    }
+    return count;
+  }
+
+  bool vault_fido_delete(const uint8_t *cred_id) {
+    for (int i = 0; i < MAX_FIDO_CREDS; i++) {
+      if (vault_data.fido_creds[i].occupied &&
+          memcmp(vault_data.fido_creds[i].credential_id, cred_id,
+                 FIDO_CREDID_MAX) == 0) {
+        vault_data.fido_creds[i].occupied = false;
+        vault_sync_to_flash();
+        return true;
+      }
+    }
+    return false;
+  }
