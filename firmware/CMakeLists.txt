@@ -14,6 +14,7 @@ add_executable(vaultkey_firmware
     src/vault.c
     src/vk_crypto.c
     src/hardening.c
+    src/vk_totp.c
 )
 
 # Include directories

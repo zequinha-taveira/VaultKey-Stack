@@ -1,38 +1,41 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="stylesheet" href="styles.css" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>VaultKey Stack</title>
-  </head>
 
-  <body>
-    <div class="sidebar">
-      <div class="logo">
-        <div class="card-icon" style="margin-bottom: 0; width: 32px; height: 32px;">🔑</div>
-        VaultKey
-      </div>
-      
-      <div class="nav-item active">🏠 Dashboard</div>
-      <div class="nav-item">🔒 All Items</div>
-      <div class="nav-item">📎 Logins</div>
-      <div class="nav-item">📝 Secure Notes</div>
-      
-      <div style="margin-top: auto;">
-        <div class="nav-item">⚙️ Settings</div>
-      </div>
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="styles.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VaultKey Stack</title>
+</head>
+
+<body>
+  <div class="sidebar">
+    <div class="logo">
+      <div class="card-icon" style="margin-bottom: 0; width: 32px; height: 32px;">🔑</div>
+      VaultKey
     </div>
 
-    <main class="main-content">
-      <header>
-        <h1>My Vault</h1>
-        <div class="status-badge">
-          <div id="status-dot" class="status-dot"></div>
-          <span id="status-text">Detecting Device...</span>
-        </div>
-      </header>
+    <div class="nav-item active" id="nav-dashboard">🏠 Dashboard</div>
+    <div class="nav-item" id="nav-totp">🕒 Authenticators</div>
+    <div class="nav-item">🔒 All Items</div>
+    <div class="nav-item">📎 Logins</div>
+    <div class="nav-item">📝 Secure Notes</div>
 
+    <div style="margin-top: auto;">
+      <div class="nav-item">⚙️ Settings</div>
+    </div>
+  </div>
+
+  <main class="main-content">
+    <header>
+      <h1 id="main-title">My Vault</h1>
+      <div class="status-badge">
+        <div id="status-dot" class="status-dot"></div>
+        <span id="status-text">Detecting Device...</span>
+      </div>
+    </header>
+
+    <div id="dashboard-view">
       <div class="vault-grid" id="vault-list">
         <!-- Placeholder cards for initial WOW effect -->
         <div class="vault-card">
@@ -51,13 +54,29 @@
           <div class="card-desc">Click to add a new secret</div>
         </div>
       </div>
-      
+
       <div style="margin-top: 40px; display: flex; gap: 16px;">
         <button id="ping-btn" class="btn-primary">Ping Hardware</button>
-        <button id="refresh-btn" class="btn-primary" style="background-color: var(--surface-color); border: 1px solid var(--border-color);">Refresh Status</button>
+        <button id="refresh-btn" class="btn-primary"
+          style="background-color: var(--surface-color); border: 1px solid var(--border-color);">Refresh Status</button>
       </div>
-    </main>
+    </div>
 
-    <script type="module" src="main.js"></script>
-  </body>
+    <div id="totp-view" style="display: none;">
+      <div class="vault-grid">
+        <div class="vault-card" style="border-color: var(--accent-color);">
+          <div class="card-icon">🕒</div>
+          <div class="card-title">Demo Account (Mock)</div>
+          <div id="totp-code"
+            style="font-size: 2rem; font-weight: 700; color: var(--accent-color); letter-spacing: 4px; margin: 16px 0;">
+            000000</div>
+          <div class="card-desc">Refreshing in <span id="totp-timer">30</span>s</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module" src="main.js"></script>
+</body>
+
 </html>

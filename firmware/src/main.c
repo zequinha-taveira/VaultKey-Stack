@@ -1,6 +1,8 @@
 #include "pico/stdlib.h"
 #include "tusb.h"
+#include "vault.h"
 #include "vk_protocol.h"
+#include "vk_totp.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -22,8 +24,29 @@ void tud_cdc_rx_cb(uint8_t itf) {
         tud_cdc_write(res_buf, res_len);
         tud_cdc_write_flush();
       }
+    } else if (packet.type == VK_MSG_TOTP_REQ) {
+      if (packet.payload_len >= 8) {
+        uint64_t timestamp = 0;
+        memcpy(&timestamp, packet.payload, 8);
+
+        // Mock seed for TOTP demo
+        const uint8_t mock_seed[] = "JBSWY3DPEHPK3PXP"; // Base32: 'HELLO'
+        uint32_t code =
+            vk_totp_generate(mock_seed, sizeof(mock_seed) - 1, timestamp);
+
+        char code_str[8];
+        snprintf(code_str, sizeof(code_str), "%06u", code);
+
+        uint8_t res_buf[64];
+        uint16_t res_len = vk_protocol_create_packet(
+            VK_MSG_TOTP_RES, packet.id, (const uint8_t *)code_str, 6, res_buf,
+            sizeof(res_buf));
+        if (res_len > 0) {
+          tud_cdc_write(res_buf, res_len);
+          tud_cdc_write_flush();
+        }
+      }
     }
-    // Handle other message types here
   }
 }
 

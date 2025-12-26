@@ -4,7 +4,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-
 // Protocol Constants
 #define VK_PROTO_VERSION 1
 
@@ -19,6 +18,10 @@ typedef enum {
   VK_MSG_VAULT_GET_RES = 7,
   VK_MSG_VAULT_SET_REQ = 8,
   VK_MSG_VAULT_SET_RES = 9,
+  VK_MSG_VAULT_DELETE_REQ = 10,
+  VK_MSG_VAULT_DELETE_RES = 11,
+  VK_MSG_TOTP_REQ = 12,
+  VK_MSG_TOTP_RES = 13,
   VK_MSG_ERROR = 255
 } vk_msg_type_t;
 

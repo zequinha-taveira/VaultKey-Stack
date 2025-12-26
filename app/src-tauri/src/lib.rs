@@ -67,11 +67,25 @@ async fn send_command(msg_type: u8, payload: Vec<u8>) -> Result<Vec<u8>, String>
     }
 }
 
+#[tauri::command]
+async fn get_totp() -> Result<String, String> {
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|e| e.to_string())?
+        .as_secs();
+
+    let mut payload = timestamp.to_ne_bytes().to_vec();
+    
+    // VK_MSG_TOTP_REQ = 12
+    let response = send_command(12, payload).await?;
+    Ok(String::from_utf8_lossy(&response).to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet, get_device_status, send_command, derive_key])
+        .invoke_handler(tauri::generate_handler![greet, get_device_status, send_command, derive_key, get_totp])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
