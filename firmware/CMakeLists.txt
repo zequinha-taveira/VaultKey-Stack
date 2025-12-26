@@ -24,6 +24,7 @@ target_include_directories(vaultkey_firmware PRIVATE
 # Pull in common dependencies
 target_link_libraries(vaultkey_firmware
     pico_stdlib
+    pico_flash
     tinyusb_device
     tinyusb_board
 )

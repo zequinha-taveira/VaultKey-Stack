@@ -4,7 +4,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-
 #define MAX_ENTRIES 100
 #define ENTRY_NAME_MAX 32
 #define ENTRY_SECRET_MAX 64
@@ -15,6 +14,7 @@ typedef struct {
   uint8_t nonce[12];
   uint8_t tag[16];
   bool occupied;
+  uint8_t _padding[3]; // Align to 128 bytes
 } vault_entry_t;
 
 // Initialize vault (mount flash, verify integrity)
