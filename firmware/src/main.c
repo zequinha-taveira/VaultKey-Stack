@@ -225,6 +225,27 @@ else if (packet.type == VK_MSG_FIDO_DEL_REQ) {
     tud_cdc_write_flush();
   }
 }
+else if (packet.type == VK_MSG_FIDO_PIN_STATUS_REQ) {
+  uint8_t status = vault_fido_has_pin() ? 1 : 0;
+  uint8_t res_buf[64];
+  uint16_t res_len =
+      vk_protocol_create_packet(VK_MSG_FIDO_PIN_STATUS_RES, packet.id, &status,
+                                1, res_buf, sizeof(res_buf));
+  tud_cdc_write(res_buf, res_len);
+  tud_cdc_write_flush();
+}
+else if (packet.type == VK_MSG_FIDO_SET_PIN_REQ) {
+  if (packet.payload_len == 32) {
+    bool success = vault_fido_set_pin(packet.payload);
+    uint8_t res_buf[64];
+    uint16_t res_len =
+        vk_protocol_create_packet(VK_MSG_FIDO_SET_PIN_RES, packet.id,
+                                  (const uint8_t *)(success ? "OK" : "FAIL"),
+                                  success ? 2 : 4, res_buf, sizeof(res_buf));
+    tud_cdc_write(res_buf, res_len);
+    tud_cdc_write_flush();
+  }
+}
 }
 }
 

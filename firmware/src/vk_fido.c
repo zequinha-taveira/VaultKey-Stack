@@ -178,8 +178,13 @@ static void vk_fido_dispatch_ctap2(uint32_t cid, uint8_t *payload,
         sha256_update(&ctx, (uint8_t *)new_cred.rp_id, strlen(new_cred.rp_id));
         sha256_final(&ctx, rp_id_hash);
         uint8_t aaguid[] = VK_AAGUID;
+        // Flags: 0x01=UP, 0x04=UV, 0x40=AT
+        uint8_t flags = 0x41; // UP + AT
+        if (vault_fido_has_pin()) {
+          flags |= 0x04; // Add UV if PIN is set
+        }
         size_t ad_len =
-            encode_auth_data(auth_data, rp_id_hash, 0x41, 0, aaguid,
+            encode_auth_data(auth_data, rp_id_hash, flags, 0, aaguid,
                              new_cred.credential_id, 32, new_cred.public_key);
 
         res_buf[0] = 0x00;
@@ -217,7 +222,12 @@ static void vk_fido_dispatch_ctap2(uint32_t cid, uint8_t *payload,
         sha256_init(&ctx);
         sha256_update(&ctx, (uint8_t *)rp_id, strlen(rp_id));
         sha256_final(&ctx, rp_id_hash);
-        size_t ad_len = encode_auth_data(auth_data, rp_id_hash, 0x01, 0, NULL,
+        // Flags: 0x01=UP, 0x04=UV
+        uint8_t flags = 0x01; // UP
+        if (vault_fido_has_pin()) {
+          flags |= 0x04; // Add UV if PIN is set
+        }
+        size_t ad_len = encode_auth_data(auth_data, rp_id_hash, flags, 0, NULL,
                                          NULL, 0, NULL);
         memcpy(to_sign, auth_data, ad_len);
         memcpy(to_sign + ad_len, cb0r_value(&hash_val), 32);

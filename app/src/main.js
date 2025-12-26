@@ -236,6 +236,58 @@ async function saveVaultEntry() {
   }
 }
 
+async function checkFidoPinStatus() {
+  try {
+    // VK_MSG_FIDO_PIN_STATUS_REQ = 44 (we'll add this)
+    const response = await invoke("send_command", { msgType: 44, payload: [] });
+    const pinSet = response[0] === 1;
+    const statusEl = document.querySelector("#fido-pin-status");
+    if (pinSet) {
+      statusEl.textContent = "PIN is set ✅";
+      statusEl.style.color = "var(--accent-color)";
+    } else {
+      statusEl.textContent = "No PIN set";
+      statusEl.style.color = "var(--text-secondary)";
+    }
+  } catch (err) {
+    console.error(err);
+    document.querySelector("#fido-pin-status").textContent = "Unknown";
+  }
+}
+
+async function saveFidoPin() {
+  const pin = document.querySelector("#fido-pin-input").value;
+  const confirm = document.querySelector("#fido-pin-confirm").value;
+
+  if (pin.length < 4) {
+    alert("PIN must be at least 4 characters");
+    return;
+  }
+  if (pin !== confirm) {
+    alert("PINs do not match");
+    return;
+  }
+
+  try {
+    // Hash PIN client-side: SHA-256(PIN) -> send first 16 bytes
+    const encoder = new TextEncoder();
+    const data = encoder.encode(pin);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    const hashArray = new Uint8Array(hashBuffer);
+
+    // VK_MSG_FIDO_SET_PIN_REQ = 45 (we'll add this)
+    await invoke("send_command", { msgType: 45, payload: Array.from(hashArray) });
+
+    document.querySelector("#pin-modal").classList.add("hidden");
+    document.querySelector("#fido-pin-input").value = "";
+    document.querySelector("#fido-pin-confirm").value = "";
+    checkFidoPinStatus();
+    alert("FIDO2 PIN set successfully!");
+  } catch (err) {
+    alert("Failed to set PIN: " + err);
+  }
+}
+
 window.addEventListener("DOMContentLoaded", () => {
   statusTextEl = document.querySelector("#status-text");
   statusDotEl = document.querySelector("#status-dot");
@@ -272,7 +324,19 @@ window.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll(".sidebar .nav-item").forEach(i => i.classList.remove("active"));
     e.target.classList.add("active");
     renderFidoKeys();
+    checkFidoPinStatus();
   });
+
+  // FIDO2 PIN Modal handlers
+  document.querySelector("#set-fido-pin-btn").addEventListener("click", () => {
+    document.querySelector("#pin-modal").classList.remove("hidden");
+  });
+  document.querySelector("#cancel-pin-btn").addEventListener("click", () => {
+    document.querySelector("#pin-modal").classList.add("hidden");
+    document.querySelector("#fido-pin-input").value = "";
+    document.querySelector("#fido-pin-confirm").value = "";
+  });
+  document.querySelector("#save-pin-btn").addEventListener("click", () => saveFidoPin());
 
   document.querySelector("#auth-btn").addEventListener("click", () => unlockVault());
   document.querySelector("#pin-input").addEventListener("keypress", (e) => {

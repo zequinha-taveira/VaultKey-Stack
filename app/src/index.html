@@ -120,11 +120,43 @@
         </div>
       </div>
       <div id="fido-view" style="display: none;">
+        <div style="margin-bottom: 24px; padding: 16px; border-radius: 12px; background: var(--surface-color); border: 1px solid var(--border-color);">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+            <span style="font-size: 1.5rem;">🔐</span>
+            <div>
+              <div style="font-weight: 600;">FIDO2 PIN</div>
+              <div id="fido-pin-status" style="font-size: 0.85rem; color: var(--text-secondary);">Checking...</div>
+            </div>
+          </div>
+          <button id="set-fido-pin-btn" class="btn-primary" style="width: 100%;">Set/Change PIN</button>
+        </div>
+        <h3 style="margin-bottom: 16px; color: var(--text-secondary);">Resident Keys</h3>
         <div class="vault-grid" id="fido-list">
           <div class="vault-card" style="border: 1px dashed var(--border-color); opacity: 0.6;">
             <div class="card-icon">🏷️</div>
             <div class="card-title">No FIDO2 keys found</div>
             <div class="card-desc">Resident credentials will appear here</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FIDO2 PIN Modal -->
+      <div id="pin-modal" class="modal-overlay hidden">
+        <div class="modal-box">
+          <h3>Set FIDO2 PIN</h3>
+          <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 20px;">This PIN protects your FIDO2 credentials and is required by some websites.</p>
+          
+          <label for="fido-pin-input" style="display: block; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px;">New PIN (minimum 4 characters)</label>
+          <input type="password" id="fido-pin-input" placeholder="Enter new PIN" minlength="4"
+            style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--surface-color); color: white; margin-bottom: 16px; text-align: center; font-size: 1.25rem; letter-spacing: 4px;" />
+          
+          <label for="fido-pin-confirm" style="display: block; font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px;">Confirm PIN</label>
+          <input type="password" id="fido-pin-confirm" placeholder="Confirm PIN"
+            style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--surface-color); color: white; margin-bottom: 24px; text-align: center; font-size: 1.25rem; letter-spacing: 4px;" />
+          
+          <div style="display: flex; justify-content: flex-end; gap: 12px;">
+            <button id="cancel-pin-btn" class="btn-micro" style="background: var(--surface-color);">Cancel</button>
+            <button id="save-pin-btn" class="btn-micro" style="background: var(--accent-light); color: black;">Save PIN</button>
           </div>
         </div>
       </div>
