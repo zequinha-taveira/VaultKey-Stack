@@ -98,11 +98,25 @@ bool vault_set(const char *name, const uint8_t *secret, uint16_t len) {
     return false;
 
   strncpy(vault_data.entries[slot].name, name, ENTRY_NAME_MAX);
-  memcpy(vault_data.entries[slot].encrypted_secret, secret, len);
+
+  // Real Encryption
+  uint8_t master_key[32]; // Derived earlier or stored in session
+  memset(master_key, 0x42,
+         32); // Mock for now until Phase 11 auth is fully wired
+
+  uint8_t iv[12];
+  // Simple deterministic IV for demo, should be random in production
+  memset(iv, slot, 12);
+  memcpy(vault_data.entries[slot].nonce, iv, 12);
+
+  if (!vk_crypto_encrypt(master_key, secret, len, iv,
+                         vault_data.entries[slot].tag,
+                         vault_data.entries[slot].encrypted_secret)) {
+    return false;
+  }
+
   vault_data.entries[slot].occupied = true;
-
   vault_sync_to_flash();
-
   return true;
 }
 

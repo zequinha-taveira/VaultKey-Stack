@@ -13,6 +13,7 @@ add_executable(vaultkey_firmware
     src/vk_protocol.c
     src/vault.c
     src/vk_crypto.c
+    src/aes.c
     src/hardening.c
     src/vk_totp.c
     src/vk_keyboard.c
