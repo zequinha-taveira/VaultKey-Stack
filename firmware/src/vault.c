@@ -8,8 +8,9 @@
 #include "vk_fido.h"
 #include <string.h>
 
-// Define flash offset for the vault (last 64KB of 16MB flash for Tenstar board)
-#define FLASH_TARGET_OFFSET (1024 * 1024 * 16 - 65536)
+// Define flash offset for the vault (last 64KB of 2MB flash for compatibility)
+// Many Zero boards only have 2MB or 4MB. 16MB was too aggressive and likely crashed the board.
+#define FLASH_TARGET_OFFSET (1024 * 1024 * 2 - 65536)
 
 typedef struct {
   security_state_t security;

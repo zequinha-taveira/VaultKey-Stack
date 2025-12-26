@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.13)
 
-# Default to RP2350 (Tenstar board)
-set(PICO_BOARD "rp2350" CACHE STRING "Target board")
+# Default to pico2 (Official RP2350 board definition)
+set(PICO_BOARD "pico2" CACHE STRING "Target board")
 set(PICO_PLATFORM "rp2350" CACHE STRING "Target platform")
 
 include($ENV{PICO_SDK_PATH}/pico_sdk_init.cmake)
@@ -63,3 +63,8 @@ target_compile_options(vaultkey_firmware PRIVATE
 
 # Create map/bin/hex/uf2 files
 pico_add_extra_outputs(vaultkey_firmware)
+
+# Diagnostic Blinky Target
+add_executable(vaultkey_blinky src/test_blinky.c)
+target_link_libraries(vaultkey_blinky pico_stdlib hardware_gpio)
+pico_add_extra_outputs(vaultkey_blinky)
