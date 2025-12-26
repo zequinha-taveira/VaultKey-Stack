@@ -27,7 +27,7 @@ extern "C" {
 #define CFG_TUD_CDC_TX_BUFSIZE 512
 
 // HID enabled
-#define CFG_TUD_HID 1
+#define CFG_TUD_HID 2
 #define CFG_TUD_HID_BUFSIZE 64
 
 #ifdef __cplusplus

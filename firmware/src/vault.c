@@ -6,61 +6,72 @@
 
 // Define flash offset for the vault (last 64KB of 2MB flash)
 #define FLASH_TARGET_OFFSET (1024 * 1024 * 2 - 65536)
-// Size of the entries array in bytes
-#define VAULT_STORAGE_SIZE sizeof(entries)
-// Ensure we use enough sectors
+typedef struct {
+  security_state_t security;
+  vault_entry_t entries[MAX_ENTRIES];
+} vault_storage_t;
+
+static vault_storage_t vault_data;
+
+#define VAULT_STORAGE_SIZE sizeof(vault_data)
 #define VAULT_ERASE_SIZE                                                       \
   ((VAULT_STORAGE_SIZE / FLASH_SECTOR_SIZE + 1) * FLASH_SECTOR_SIZE)
-
-static vault_entry_t entries[MAX_ENTRIES];
 
 static void vault_sync_to_flash(void) {
   const uint8_t *flash_target_contents =
       (const uint8_t *)(XIP_BASE + FLASH_TARGET_OFFSET);
 
-  // Basic Wear Leveling: Only write if data changed
-  if (memcmp(entries, flash_target_contents, VAULT_STORAGE_SIZE) == 0) {
+  if (memcmp(&vault_data, flash_target_contents, VAULT_STORAGE_SIZE) == 0) {
     return;
   }
 
   uint32_t ints = save_and_disable_interrupts();
-
-  // Erase sectors
   flash_range_erase(FLASH_TARGET_OFFSET, VAULT_ERASE_SIZE);
-
-  // Program data
-  // Note: flash_range_program needs data to be a multiple of FLASH_PAGE_SIZE
-  // We'll pad the buffer if necessary, but here we just write the whole array
-  // assuming it's reasonably sized or we pad it.
-  flash_range_program(FLASH_TARGET_OFFSET, (const uint8_t *)entries,
+  flash_range_program(FLASH_TARGET_OFFSET, (const uint8_t *)&vault_data,
                       VAULT_STORAGE_SIZE);
-
   restore_interrupts(ints);
 }
 
 static void vault_load_from_flash(void) {
   const uint8_t *flash_target_contents =
       (const uint8_t *)(XIP_BASE + FLASH_TARGET_OFFSET);
-  memcpy(entries, flash_target_contents, VAULT_STORAGE_SIZE);
+  memcpy(&vault_data, flash_target_contents, VAULT_STORAGE_SIZE);
 }
 
 bool vault_init(void) {
   vault_load_from_flash();
 
-  // Basic integrity check (if first entry is completely empty but occupied,
-  // might be uninitialized) For now, if all names are FF, it's empty
-  if (entries[0].name[0] == 0xFF) {
-    memset(entries, 0, sizeof(entries));
+  if (vault_data.security.magic != SECURITY_STATE_MAGIC) {
+    memset(&vault_data, 0, sizeof(vault_data));
+    vault_data.security.magic = SECURITY_STATE_MAGIC;
+    vault_sync_to_flash();
   }
 
   return true;
 }
 
+bool vault_is_locked(void) { return vault_data.security.is_locked; }
+
+uint32_t vault_get_fail_count(void) { return vault_data.security.fail_count; }
+
+void vault_report_auth_result(bool success) {
+  if (success) {
+    vault_data.security.fail_count = 0;
+    vault_data.security.is_locked = false;
+  } else {
+    vault_data.security.fail_count++;
+    if (vault_data.security.fail_count >= 5) {
+      vault_data.security.is_locked = true;
+    }
+  }
+  vault_sync_to_flash();
+}
+
 int vault_list(char names[][ENTRY_NAME_MAX], int max_count) {
   int count = 0;
   for (int i = 0; i < MAX_ENTRIES && count < max_count; i++) {
-    if (entries[i].occupied) {
-      strncpy(names[count], entries[i].name, ENTRY_NAME_MAX);
+    if (vault_data.entries[i].occupied) {
+      strncpy(names[count], vault_data.entries[i].name, ENTRY_NAME_MAX);
       count++;
     }
   }
@@ -73,11 +84,12 @@ bool vault_set(const char *name, const uint8_t *secret, uint16_t len) {
 
   int slot = -1;
   for (int i = 0; i < MAX_ENTRIES; i++) {
-    if (entries[i].occupied && strcmp(entries[i].name, name) == 0) {
+    if (vault_data.entries[i].occupied &&
+        strcmp(vault_data.entries[i].name, name) == 0) {
       slot = i;
       break;
     }
-    if (!entries[i].occupied && slot == -1) {
+    if (!vault_data.entries[i].occupied && slot == -1) {
       slot = i;
     }
   }
@@ -85,9 +97,9 @@ bool vault_set(const char *name, const uint8_t *secret, uint16_t len) {
   if (slot == -1)
     return false;
 
-  strncpy(entries[slot].name, name, ENTRY_NAME_MAX);
-  memcpy(entries[slot].encrypted_secret, secret, len);
-  entries[slot].occupied = true;
+  strncpy(vault_data.entries[slot].name, name, ENTRY_NAME_MAX);
+  memcpy(vault_data.entries[slot].encrypted_secret, secret, len);
+  vault_data.entries[slot].occupied = true;
 
   vault_sync_to_flash();
 
@@ -96,8 +108,9 @@ bool vault_set(const char *name, const uint8_t *secret, uint16_t len) {
 
 bool vault_get(const char *name, vault_entry_t *out_entry) {
   for (int i = 0; i < MAX_ENTRIES; i++) {
-    if (entries[i].occupied && strcmp(entries[i].name, name) == 0) {
-      memcpy(out_entry, &entries[i], sizeof(vault_entry_t));
+    if (vault_data.entries[i].occupied &&
+        strcmp(vault_data.entries[i].name, name) == 0) {
+      memcpy(out_entry, &vault_data.entries[i], sizeof(vault_entry_t));
       return true;
     }
   }
@@ -106,8 +119,9 @@ bool vault_get(const char *name, vault_entry_t *out_entry) {
 
 bool vault_delete(const char *name) {
   for (int i = 0; i < MAX_ENTRIES; i++) {
-    if (entries[i].occupied && strcmp(entries[i].name, name) == 0) {
-      entries[i].occupied = false;
+    if (vault_data.entries[i].occupied &&
+        strcmp(vault_data.entries[i].name, name) == 0) {
+      vault_data.entries[i].occupied = false;
       vault_sync_to_flash();
       return true;
     }
@@ -116,6 +130,7 @@ bool vault_delete(const char *name) {
 }
 
 void vault_format(void) {
-  memset(entries, 0, sizeof(entries));
+  memset(&vault_data, 0, sizeof(vault_data));
+  vault_data.security.magic = SECURITY_STATE_MAGIC;
   vault_sync_to_flash();
 }

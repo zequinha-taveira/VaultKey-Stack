@@ -9,72 +9,89 @@
 </head>
 
 <body>
-  <div class="sidebar">
-    <div class="logo">
-      <div class="card-icon" style="margin-bottom: 0; width: 32px; height: 32px;">🔑</div>
-      VaultKey
-    </div>
-
-    <div class="nav-item active" id="nav-dashboard">🏠 Dashboard</div>
-    <div class="nav-item" id="nav-totp">🕒 Authenticators</div>
-    <div class="nav-item">🔒 All Items</div>
-    <div class="nav-item">📎 Logins</div>
-    <div class="nav-item">📝 Secure Notes</div>
-
-    <div style="margin-top: auto;">
-      <div class="nav-item">⚙️ Settings</div>
+  <div id="login-screen" class="login-screen">
+    <div class="login-box">
+      <div class="card-icon" style="margin: 0 auto 24px auto;">🔑</div>
+      <h2>VaultKey Unlock</h2>
+      <p style="color: var(--text-secondary); margin-bottom: 24px;">Enter your PIN to access your secrets</p>
+      <input type="password" id="pin-input" placeholder="Enter PIN" maxlength="8"
+        style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--surface-color); color: white; margin-bottom: 16px; text-align: center; font-size: 1.25rem; letter-spacing: 4px;" />
+      <button id="auth-btn" class="btn-primary" style="width: 100%;">Unlock</button>
+      <div id="auth-feedback" class="auth-feedback"></div>
     </div>
   </div>
 
-  <main class="main-content">
-    <header>
-      <h1 id="main-title">My Vault</h1>
-      <div class="status-badge">
-        <div id="status-dot" class="status-dot"></div>
-        <span id="status-text">Detecting Device...</span>
-      </div>
-    </header>
-
-    <div id="dashboard-view">
-      <div class="vault-grid" id="vault-list">
-        <!-- Placeholder cards for initial WOW effect -->
-        <div class="vault-card">
-          <div class="card-icon">G</div>
-          <div class="card-title">Google Account</div>
-          <div class="card-desc">zequi@example.com</div>
-        </div>
-        <div class="vault-card">
-          <div class="card-icon">G</div>
-          <div class="card-title">GitHub</div>
-          <div class="card-desc">zequinha-taveira</div>
-        </div>
-        <div class="vault-card">
-          <div class="card-icon">+</div>
-          <div class="card-title">Add New</div>
-          <div class="card-desc">Click to add a new secret</div>
-        </div>
+  <div id="app-shell" class="hidden">
+    <div class="sidebar">
+      <div class="logo">
+        <div class="card-icon" style="margin-bottom: 0; width: 32px; height: 32px;">🔑</div>
+        VaultKey
       </div>
 
-      <div style="margin-top: 40px; display: flex; gap: 16px;">
-        <button id="ping-btn" class="btn-primary">Ping Hardware</button>
-        <button id="refresh-btn" class="btn-primary"
-          style="background-color: var(--surface-color); border: 1px solid var(--border-color);">Refresh Status</button>
+      <div class="nav-item active" id="nav-dashboard">🏠 Dashboard</div>
+      <div class="nav-item" id="nav-totp">🕒 Authenticators</div>
+      <div class="nav-item">🔒 All Items</div>
+      <div class="nav-item">📎 Logins</div>
+      <div class="nav-item">📝 Secure Notes</div>
+
+      <div style="margin-top: auto;">
+        <div class="nav-item">⚙️ Settings</div>
       </div>
     </div>
 
-    <div id="totp-view" style="display: none;">
-      <div class="vault-grid">
-        <div class="vault-card" style="border-color: var(--accent-color);">
-          <div class="card-icon">🕒</div>
-          <div class="card-title">Demo Account (Mock)</div>
-          <div id="totp-code"
-            style="font-size: 2rem; font-weight: 700; color: var(--accent-color); letter-spacing: 4px; margin: 16px 0;">
-            000000</div>
-          <div class="card-desc">Refreshing in <span id="totp-timer">30</span>s</div>
+    <main class="main-content">
+      <header>
+        <h1 id="main-title">My Vault</h1>
+        <div class="status-badge">
+          <div id="status-dot" class="status-dot"></div>
+          <span id="status-text">Detecting Device...</span>
+        </div>
+      </header>
+
+      <div id="dashboard-view">
+        <div class="vault-grid" id="vault-list">
+          <!-- Placeholder cards  -->
+          <div class="vault-card">
+            <div class="card-icon">G</div>
+            <div class="card-title">Google Account</div>
+            <div class="card-desc">zequi@example.com</div>
+            <button class="btn-micro type-btn" data-text="GooglePass123!">⌨️ Type</button>
+          </div>
+          <div class="vault-card">
+            <div class="card-icon">G</div>
+            <div class="card-title">GitHub</div>
+            <div class="card-desc">zequinha-taveira</div>
+            <button class="btn-micro type-btn" data-text="GitSecret456!">⌨️ Type</button>
+          </div>
+          <div class="vault-card">
+            <div class="card-icon">+</div>
+            <div class="card-title">Add New</div>
+            <div class="card-desc">Click to add a new secret</div>
+          </div>
+        </div>
+
+        <div style="margin-top: 40px; display: flex; gap: 16px;">
+          <button id="ping-btn" class="btn-primary">Ping Hardware</button>
+          <button id="refresh-btn" class="btn-primary"
+            style="background-color: var(--surface-color); border: 1px solid var(--border-color);">Refresh
+            Status</button>
         </div>
       </div>
-    </div>
-  </main>
+
+      <div id="totp-view" style="display: none;">
+        <div class="vault-grid">
+          <div class="vault-card" style="border-color: var(--accent-color);">
+            <div class="card-icon">🕒</div>
+            <div class="card-title">Demo Account (Mock)</div>
+            <div id="totp-code"
+              style="font-size: 2rem; font-weight: 700; color: var(--accent-color); letter-spacing: 4px; margin: 16px 0;">
+              000000</div>
+            <div class="card-desc">Refreshing in <span id="totp-timer">30</span>s</div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
 
   <script type="module" src="main.js"></script>
 </body>

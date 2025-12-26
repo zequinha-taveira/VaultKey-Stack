@@ -54,6 +54,54 @@ function startTotpTimer() {
   }, 1000);
 }
 
+async function updateSecurityStatus() {
+  try {
+    const [fails, locked] = await invoke("get_security_status");
+    const feedback = document.querySelector("#auth-feedback");
+    const input = document.querySelector("#pin-input");
+    const btn = document.querySelector("#auth-btn");
+
+    if (locked) {
+      feedback.textContent = "DEVICE LOCKED: Too many failed attempts.";
+      input.disabled = true;
+      btn.disabled = true;
+      btn.style.opacity = "0.5";
+    } else if (fails > 0) {
+      feedback.textContent = `Attempts remaining: ${5 - fails}/5`;
+    } else {
+      feedback.textContent = "";
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+async function unlockVault() {
+  const pin = document.querySelector("#pin-input").value;
+  if (!pin) return;
+
+  try {
+    const key = await invoke("derive_key", { pin });
+    // VK_MSG_AUTH_REQ = 4
+    const response = await invoke("send_command", { msgType: 4, payload: Array.from(key) });
+    const status = new TextDecoder().decode(new Uint8Array(response));
+
+    if (status === "OK") {
+      document.querySelector("#login-screen").classList.add("hidden");
+      document.querySelector("#app-shell").classList.remove("hidden");
+      updateStatus();
+    } else {
+      await updateSecurityStatus();
+    }
+  } catch (err) {
+    if (err.toString().includes("LOCKED")) {
+      await updateSecurityStatus();
+    } else {
+      alert("Error: " + err);
+    }
+  }
+}
+
 window.addEventListener("DOMContentLoaded", () => {
   statusTextEl = document.querySelector("#status-text");
   statusDotEl = document.querySelector("#status-dot");
@@ -66,7 +114,7 @@ window.addEventListener("DOMContentLoaded", () => {
     dashboardView.style.display = "block";
     totpView.style.display = "none";
     mainTitle.textContent = "My Vault";
-    e.target.parentElement.querySelectorAll(".nav-item").forEach(i => i.classList.remove("active"));
+    document.querySelectorAll(".sidebar .nav-item").forEach(i => i.classList.remove("active"));
     e.target.classList.add("active");
   });
 
@@ -74,18 +122,34 @@ window.addEventListener("DOMContentLoaded", () => {
     dashboardView.style.display = "none";
     totpView.style.display = "block";
     mainTitle.textContent = "Authenticators";
-    e.target.parentElement.querySelectorAll(".nav-item").forEach(i => i.classList.remove("active"));
+    document.querySelectorAll(".sidebar .nav-item").forEach(i => i.classList.remove("active"));
     e.target.classList.add("active");
     fetchTotp();
+  });
+
+  document.querySelector("#auth-btn").addEventListener("click", () => unlockVault());
+  document.querySelector("#pin-input").addEventListener("keypress", (e) => {
+    if (e.key === "Enter") unlockVault();
   });
 
   document.querySelector("#ping-btn").addEventListener("click", () => pingHardware());
   document.querySelector("#refresh-btn").addEventListener("click", () => updateStatus());
 
+  document.querySelectorAll(".type-btn").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      const text = e.target.getAttribute("data-text");
+      try {
+        await invoke("type_text", { text });
+      } catch (err) {
+        console.error(err);
+      }
+    });
+  });
+
   // Initial update
   updateStatus();
+  updateSecurityStatus();
   startTotpTimer();
-  fetchTotp();
 
   // Poll status every 5 seconds
   setInterval(updateStatus, 5000);

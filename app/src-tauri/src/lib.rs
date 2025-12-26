@@ -68,24 +68,43 @@ async fn send_command(msg_type: u8, payload: Vec<u8>) -> Result<Vec<u8>, String>
 }
 
 #[tauri::command]
-async fn get_totp() -> Result<String, String> {
-    let timestamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_err(|e| e.to_string())?
-        .as_secs();
-
-    let mut payload = timestamp.to_ne_bytes().to_vec();
+async fn get_security_status() -> Result<(u32, bool), String> {
+    // VK_MSG_GET_SECURITY_REQ = 16
+    let response = send_command(16, vec![]).await?;
+    if response.len() < 5 {
+        return Err("Invalid security status response".to_string());
+    }
     
-    // VK_MSG_TOTP_REQ = 12
-    let response = send_command(12, payload).await?;
-    Ok(String::from_utf8_lossy(&response).to_string())
+    let mut fail_count_bytes = [0u8; 4];
+    fail_count_bytes.copy_from_slice(&response[0..4]);
+    let fail_count = u32::from_ne_bytes(fail_count_bytes);
+    let is_locked = response[4] != 0;
+    
+    Ok((fail_count, is_locked))
+}
+
+#[tauri::command]
+async fn type_text(text: String) -> Result<(), String> {
+    let payload = text.as_bytes().to_vec();
+    
+    // VK_MSG_KEYB_TYPE_REQ = 14
+    let _response = send_command(14, payload).await?;
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet, get_device_status, send_command, derive_key, get_totp])
+        .invoke_handler(tauri::generate_handler![
+            greet, 
+            get_device_status, 
+            send_command, 
+            derive_key, 
+            get_totp,
+            type_text,
+            get_security_status
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

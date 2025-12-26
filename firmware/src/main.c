@@ -24,6 +24,42 @@ void tud_cdc_rx_cb(uint8_t itf) {
         tud_cdc_write(res_buf, res_len);
         tud_cdc_write_flush();
       }
+    } else if (packet.type == VK_MSG_AUTH_REQ) {
+      if (packet.payload_len == 32) {
+        if (vault_is_locked()) {
+          uint8_t res_buf[64];
+          uint16_t res_len = vk_protocol_create_packet(
+              VK_MSG_ERROR, packet.id, (const uint8_t *)"LOCKED", 6, res_buf,
+              sizeof(res_buf));
+          tud_cdc_write(res_buf, res_len);
+          tud_cdc_write_flush();
+        } else {
+          // Mock comparison for demo
+          bool success = memcmp(packet.payload,
+                                "expected_key_placeholder_32bytes", 32) == 0;
+          vault_report_auth_result(success);
+
+          uint8_t res_buf[64];
+          uint16_t res_len = vk_protocol_create_packet(
+              VK_MSG_AUTH_RES, packet.id,
+              (const uint8_t *)(success ? "OK" : "FAIL"), success ? 2 : 4,
+              res_buf, sizeof(res_buf));
+          tud_cdc_write(res_buf, res_len);
+          tud_cdc_write_flush();
+        }
+      }
+    } else if (packet.type == VK_MSG_GET_SECURITY_REQ) {
+      uint8_t status[5];
+      uint32_t fails = vault_get_fail_count();
+      memcpy(status, &fails, 4);
+      status[4] = vault_is_locked() ? 1 : 0;
+
+      uint8_t res_buf[64];
+      uint16_t res_len =
+          vk_protocol_create_packet(VK_MSG_GET_SECURITY_RES, packet.id, status,
+                                    5, res_buf, sizeof(res_buf));
+      tud_cdc_write(res_buf, res_len);
+      tud_cdc_write_flush();
     } else if (packet.type == VK_MSG_TOTP_REQ) {
       if (packet.payload_len >= 8) {
         uint64_t timestamp = 0;
@@ -40,6 +76,25 @@ void tud_cdc_rx_cb(uint8_t itf) {
         uint8_t res_buf[64];
         uint16_t res_len = vk_protocol_create_packet(
             VK_MSG_TOTP_RES, packet.id, (const uint8_t *)code_str, 6, res_buf,
+            sizeof(res_buf));
+        if (res_len > 0) {
+          tud_cdc_write(res_buf, res_len);
+          tud_cdc_write_flush();
+        }
+      }
+    } else if (packet.type == VK_MSG_KEYB_TYPE_REQ) {
+      if (packet.payload_len > 0) {
+        // Ensure null termination for the string
+        char text_to_type[128];
+        uint16_t copy_len = packet.payload_len < 127 ? packet.payload_len : 127;
+        memcpy(text_to_type, packet.payload, copy_len);
+        text_to_type[copy_len] = '\0';
+
+        vk_keyboard_type(text_to_type);
+
+        uint8_t res_buf[64];
+        uint16_t res_len = vk_protocol_create_packet(
+            VK_MSG_KEYB_TYPE_RES, packet.id, (const uint8_t *)"OK", 2, res_buf,
             sizeof(res_buf));
         if (res_len > 0) {
           tud_cdc_write(res_buf, res_len);
