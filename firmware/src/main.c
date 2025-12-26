@@ -210,6 +210,8 @@ void tud_cdc_rx_cb(uint8_t itf) {
   }
 }
 
+#include "vk_fido.h"
+
 // HID Callback: Invoked when received GET_REPORT control request
 uint16_t tud_hid_get_report_cb(uint8_t itf, uint8_t report_id,
                                hid_report_type_t report_type, uint8_t *buffer,
@@ -227,22 +229,37 @@ uint16_t tud_hid_get_report_cb(uint8_t itf, uint8_t report_id,
 void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id,
                            hid_report_type_t report_type, uint8_t const *buffer,
                            uint16_t bufsize) {
-  (void)itf;
   (void)report_id;
   (void)report_type;
-  (void)buffer;
-  (void)bufsize;
 
-  // Protocol can also be handled over HID for better cross-platform
-  // compatibility without drivers
-  vk_packet_t packet;
-  if (vk_protocol_parse(buffer, (uint16_t)bufsize, &packet)) {
-    // Process packet...
+  if (itf == 2) { // ITF_NUM_HID_FIDO
+    vk_fido_handle_report(buffer);
+    return;
+  }
+
+  // Original Protocol handler (ITF 0)
+  if (itf == 0) {
+    vk_packet_t packet;
+    if (vk_protocol_parse(buffer, (uint16_t)bufsize, &packet)) {
+      // Logic from CDC handler could be shared here
+    }
   }
 }
 
+#include "vk_crypto.h"
+
 int main() {
   stdio_init_all();
+
+  // Security Health Check: Ensure TRNG is working
+  if (!vk_crypto_trng_check()) {
+    // Critical failure: Hardware random generator not responding or stuck.
+    // In a real device, we would blink an LED or show an error.
+    while (1) {
+      tight_loop_contents();
+    }
+  }
+
   tusb_init();
   vk_protocol_init();
 

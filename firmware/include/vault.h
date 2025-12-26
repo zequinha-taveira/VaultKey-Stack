@@ -18,6 +18,20 @@ typedef struct {
   uint8_t _padding[1]; // Align to 128 bytes
 } vault_entry_t;
 
+#define FIDO_CREDID_MAX 32
+#define FIDO_RPID_MAX 64
+#define FIDO_USER_MAX 64
+
+typedef struct {
+  uint8_t credential_id[FIDO_CREDID_MAX];
+  uint8_t private_key[32]; // Ed25519
+  uint8_t public_key[32];
+  char rp_id[FIDO_RPID_MAX];
+  char user_name[FIDO_USER_MAX];
+  bool occupied;
+  uint8_t _padding[31]; // Align to 256 bytes (64+32+32+64+32+1+31 = 256)
+} vk_fido_cred_t;
+
 typedef struct {
   uint32_t fail_count;
   bool is_locked;
@@ -63,5 +77,11 @@ bool vault_delete(const char *name);
 
 // Format vault (danger!)
 void vault_format(void);
+
+// FIDO2 API
+bool vault_fido_add(const vk_fido_cred_t *cred);
+bool vault_fido_get_by_id(const uint8_t *cred_id, vk_fido_cred_t *out_cred);
+int vault_fido_list_by_rp(const char *rp_id, vk_fido_cred_t *out_creds,
+                          int max_count);
 
 #endif // VAULT_H

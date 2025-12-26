@@ -6,9 +6,12 @@
 
 // Define flash offset for the vault (last 64KB of 2MB flash)
 #define FLASH_TARGET_OFFSET (1024 * 1024 * 2 - 65536)
+#define MAX_FIDO_CREDS 10
+
 typedef struct {
   security_state_t security;
   vault_entry_t entries[MAX_ENTRIES];
+  vk_fido_cred_t fido_creds[MAX_FIDO_CREDS];
 } vault_storage_t;
 
 static vault_storage_t vault_data;
@@ -204,4 +207,42 @@ void vault_format(void) {
   // but usually UI should do this on first set-pin.
   // For now, let's just sync the zeroed state.
   vault_sync_to_flash();
+}
+
+bool vault_fido_add(const vk_fido_cred_t *cred) {
+  for (int i = 0; i < MAX_FIDO_CREDS; i++) {
+    if (!vault_data.fido_creds[i].occupied) {
+      memcpy(&vault_data.fido_creds[i], cred, sizeof(vk_fido_cred_t));
+      vault_data.fido_creds[i].occupied = true;
+      vault_sync_to_flash();
+      return true;
+    }
+  }
+  return false; // Out of space
+}
+
+bool vault_fido_get_by_id(const uint8_t *cred_id, vk_fido_cred_t *out_cred) {
+  for (int i = 0; i < MAX_FIDO_CREDS; i++) {
+    if (vault_data.fido_creds[i].occupied &&
+        memcmp(vault_data.fido_creds[i].credential_id, cred_id,
+               FIDO_CREDID_MAX) == 0) {
+      memcpy(out_cred, &vault_data.fido_creds[i], sizeof(vk_fido_cred_t));
+      return true;
+    }
+  }
+  return false;
+}
+
+int vault_fido_list_by_rp(const char *rp_id, vk_fido_cred_t *out_creds,
+                          int max_count) {
+  int count = 0;
+  for (int i = 0; i < MAX_FIDO_CREDS && count < max_count; i++) {
+    if (vault_data.fido_creds[i].occupied &&
+        strcmp(vault_data.fido_creds[i].rp_id, rp_id) == 0) {
+      memcpy(&out_creds[count], &vault_data.fido_creds[i],
+             sizeof(vk_fido_cred_t));
+      count++;
+    }
+  }
+  return count;
 }

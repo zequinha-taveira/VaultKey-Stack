@@ -14,9 +14,30 @@ uint8_t const desc_hid_generic_report[] = {
 // HID Keyboard Report
 uint8_t const desc_hid_keyboard_report[] = {TUD_HID_REPORT_DESC_KEYBOARD()};
 
+// HID FIDO Report (U2FHID)
+// Usage Page 0xF1D0, Usage 0x01
+uint8_t const desc_hid_fido_report[] = {
+    0x06, 0xd0, 0xf1, // Usage Page (FIDO Alliance)
+    0x09, 0x01,       // Usage (U2F HID Authenticator Device)
+    0xa1, 0x01,       // Collection (Application)
+    0x09, 0x20,       // Usage (Data In)
+    0x15, 0x00,       // Logical Minimum (0)
+    0x26, 0xff, 0x00, // Logical Maximum (255)
+    0x75, 0x08,       // Report Size (8)
+    0x95, 0x40,       // Report Count (64)
+    0x81, 0x02,       // Input (Data, Absolute, Variable)
+    0x09, 0x21,       // Usage (Data Out)
+    0x15, 0x00,       // Logical Minimum (0)
+    0x26, 0xff, 0x00, // Logical Maximum (255)
+    0x75, 0x08,       // Report Size (8)
+    0x95, 0x40,       // Report Count (64)
+    0x91, 0x02,       // Output (Data, Absolute, Variable)
+    0xc0              // End Collection
+};
+
 // Array of HID report descriptors
-uint8_t const *const hid_report_descriptors[] = {desc_hid_generic_report,
-                                                 desc_hid_keyboard_report};
+uint8_t const *const hid_report_descriptors[] = {
+    desc_hid_generic_report, desc_hid_keyboard_report, desc_hid_fido_report};
 
 uint8_t const *tud_hid_descriptor_report_cb(uint8_t itf) {
   return hid_report_descriptors[itf];
@@ -53,17 +74,19 @@ enum {
   ITF_NUM_CDC_DATA,
   ITF_NUM_HID_GENERIC,
   ITF_NUM_HID_KEYBOARD,
+  ITF_NUM_HID_FIDO,
   ITF_NUM_TOTAL
 };
 
 #define CONFIG_ID_TOTAL_LEN                                                    \
-  (TUD_CONFIG_DESC_LEN + TUD_CDC_DESC_LEN + (2 * TUD_HID_DESC_LEN))
+  (TUD_CONFIG_DESC_LEN + TUD_CDC_DESC_LEN + (3 * TUD_HID_DESC_LEN))
 
 #define EPNUM_CDC_NOTIF 0x81
 #define EPNUM_CDC_OUT 0x02
 #define EPNUM_CDC_IN 0x82
 #define EPNUM_HID_GEN 0x83
 #define EPNUM_HID_KEYB 0x84
+#define EPNUM_HID_FIDO 0x85
 
 uint8_t const desc_configuration[] = {
     TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_ID_TOTAL_LEN,
@@ -80,8 +103,12 @@ uint8_t const desc_configuration[] = {
 
     // HID Keyboard
     TUD_HID_DESCRIPTOR(ITF_NUM_HID_KEYBOARD, 6, HID_ITF_PROTOCOL_KEYBOARD,
-                       sizeof(desc_hid_keyboard_report), EPNUM_HID_KEYB, 8,
-                       10)};
+                       sizeof(desc_hid_keyboard_report), EPNUM_HID_KEYB, 8, 10),
+
+    // HID FIDO
+    TUD_HID_DESCRIPTOR(ITF_NUM_HID_FIDO, 7, HID_ITF_PROTOCOL_NONE,
+                       sizeof(desc_hid_fido_report), EPNUM_HID_FIDO,
+                       CFG_TUD_HID_BUFSIZE, 10)};
 
 uint8_t const *tud_descriptor_configuration_cb(uint8_t index) {
   return desc_configuration;
@@ -98,6 +125,7 @@ char const *string_desc_arr[] = {
     "VaultKey CDC",             // 4: CDC Interface
     "VaultKey Protocol",        // 5: HID Generic
     "VaultKey Keyboard",        // 6: HID Keyboard
+    "VaultKey FIDO",            // 7: HID FIDO
 };
 
 static uint16_t _desc_str[32];

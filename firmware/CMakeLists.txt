@@ -17,17 +17,25 @@ add_executable(vaultkey_firmware
     src/hardening.c
     src/vk_totp.c
     src/vk_keyboard.c
+    lib/argon2/argon2.c
+    src/vk_fido.c
+    lib/cb0r/cb0r.c
+    lib/nacl/tweetnacl.c
 )
 
 # Include directories
 target_include_directories(vaultkey_firmware PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/include
+    ${CMAKE_CURRENT_LIST_DIR}/lib/argon2
+    ${CMAKE_CURRENT_LIST_DIR}/lib/cb0r
+    ${CMAKE_CURRENT_LIST_DIR}/lib/nacl
 )
 
 # Pull in common dependencies
 target_link_libraries(vaultkey_firmware
     pico_stdlib
     pico_flash
+    pico_rand
     tinyusb_device
     tinyusb_board
 )

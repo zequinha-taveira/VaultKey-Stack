@@ -33,5 +33,6 @@ void vk_crypto_zeroize(void *v, size_t n);
 
 // Randomness
 void vk_crypto_get_random(uint8_t *buffer, size_t len);
+bool vk_crypto_trng_check(void);
 
 #endif // VK_CRYPTO_H
