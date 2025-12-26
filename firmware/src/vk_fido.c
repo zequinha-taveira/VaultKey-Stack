@@ -35,10 +35,11 @@ static uint8_t pin_token[32] = {0};
   {0x56, 0x4B, 0x53, 0x54, 0x41, 0x43, 0x4B, 0x01,                             \
    0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}
 
+extern bool vk_main_wait_for_button(uint32_t timeout_ms);
+
 static bool vk_fido_wait_for_user_presence(void) {
-  // Hardware implementation: check button press.
-  // For now, we simulate user is always present.
-  return true;
+  // Hardware implementation: check button press with 30s timeout.
+  return vk_main_wait_for_button(30000);
 }
 
 #define CTAP_STATUS_OK 0x00

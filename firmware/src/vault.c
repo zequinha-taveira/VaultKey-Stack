@@ -70,7 +70,9 @@ bool vault_verify_pin(const uint8_t *key) {
 
   if (vk_crypto_decrypt(key, vault_data.security.canary, 16, iv,
                         vault_data.security.canary_tag, plaintext)) {
-    return memcmp(plaintext, "VK_VALID_LOGIN!!", 16) == 0;
+    bool valid = (memcmp(plaintext, "VK_VALID_LOGIN!!", 16) == 0);
+    vk_crypto_zeroize(plaintext, 16);
+    return valid;
   }
   return false;
 }

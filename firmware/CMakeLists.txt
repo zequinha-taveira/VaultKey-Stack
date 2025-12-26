@@ -50,5 +50,13 @@ target_compile_definitions(vaultkey_firmware PRIVATE
     PICO_USB=1
 )
 
+# Production flags
+target_compile_options(vaultkey_firmware PRIVATE
+    -Os
+    -fstack-protector-strong
+    -Wall
+    -Wextra
+)
+
 # Create map/bin/hex/uf2 files
 pico_add_extra_outputs(vaultkey_firmware)

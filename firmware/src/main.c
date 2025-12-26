@@ -1,3 +1,4 @@
+#include "hardware/gpio.h"
 #include "pico/stdlib.h"
 #include "tusb.h"
 #include "vault.h"
@@ -6,6 +7,59 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+
+#define PIN_LED 25
+#define PIN_BUTTON 22
+
+static bool led_blink_fast = false;
+static bool led_active = false;
+
+void vk_main_set_led_mode(bool wait_for_touch) {
+  led_blink_fast = wait_for_touch;
+  led_active = true;
+}
+
+void vk_main_led_off(void) {
+  led_active = false;
+  gpio_put(PIN_LED, 0);
+}
+
+bool vk_main_wait_for_button(uint32_t timeout_ms) {
+  uint32_t start = board_millis();
+  vk_main_set_led_mode(true); // Fast blink
+
+  while (board_millis() - start < timeout_ms) {
+    if (gpio_get(PIN_BUTTON) == 0) { // Pressed (Pull-up)
+      // Wait for release
+      while (gpio_get(PIN_BUTTON) == 0 && board_millis() - start < timeout_ms) {
+        tight_loop_contents();
+      }
+      vk_main_led_off();
+      return true;
+    }
+    tight_loop_contents();
+    // We might need to call tud_task() here to keep USB alive?
+    // Actually, FIDO operations are usually blocking for the host anyway.
+    tud_task();
+  }
+
+  vk_main_led_off();
+  return false;
+}
+
+static void led_task(void) {
+  if (!led_active)
+    return;
+
+  static uint32_t start_ms = 0;
+  uint32_t interval = led_blink_fast ? 100 : 500;
+
+  if (board_millis() - start_ms < interval)
+    return;
+  start_ms = board_millis();
+
+  gpio_xor_mask(1u << PIN_LED);
+}
 
 // CDC Callback: Invoked when CDC interface received data from host
 void tud_cdc_rx_cb(uint8_t itf) {
@@ -300,10 +354,20 @@ int main() {
   }
 
   tusb_init();
+
+  // GPIO Initialization
+  gpio_init(PIN_LED);
+  gpio_set_dir(PIN_LED, GPIO_OUT);
+
+  gpio_init(PIN_BUTTON);
+  gpio_set_dir(PIN_BUTTON, GPIO_IN);
+  gpio_pull_up(PIN_BUTTON);
+
   vk_protocol_init();
 
   while (1) {
     tud_task(); // tinyusb device task
+    led_task();
   }
 
   return 0;
