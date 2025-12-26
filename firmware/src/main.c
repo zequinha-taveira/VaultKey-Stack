@@ -8,8 +8,27 @@
 #include <stdio.h>
 #include <string.h>
 
-#define PIN_LED 25
-#define PIN_BUTTON 22
+// Tenstar RP2350-USB Pinout
+#define PIN_LED 22    // WS2812 RGB LED
+#define PIN_BUTTON 21 // User presence button (external or bridge GP21 to GND)
+
+// Basic WS2812 Bit-bang for RP2350
+void ws2812_put_rgb(uint8_t r, uint8_t g, uint8_t b) {
+  uint32_t val = ((uint32_t)g << 16) | ((uint32_t)r << 8) | (uint32_t)b;
+  for (int i = 23; i >= 0; i--) {
+    if (val & (1 << i)) {
+      gpio_put(PIN_LED, 1);
+      for (volatile int j = 0; j < 10; j++)
+        ; // High for long
+      gpio_put(PIN_LED, 0);
+    } else {
+      gpio_put(PIN_LED, 1);
+      for (volatile int j = 0; j < 2; j++)
+        ; // High for short
+      gpio_put(PIN_LED, 0);
+    }
+  }
+}
 
 static bool led_blink_fast = false;
 static bool led_active = false;
@@ -21,7 +40,7 @@ void vk_main_set_led_mode(bool wait_for_touch) {
 
 void vk_main_led_off(void) {
   led_active = false;
-  gpio_put(PIN_LED, 0);
+  ws2812_put_rgb(0, 0, 0); // All off
 }
 
 bool vk_main_wait_for_button(uint32_t timeout_ms) {
@@ -51,14 +70,23 @@ static void led_task(void) {
   if (!led_active)
     return;
 
-  static uint32_t start_ms = 0;
-  uint32_t interval = led_blink_fast ? 100 : 500;
+  static uint32_t last_step = 0;
+  uint32_t now = board_millis();
+  uint32_t interval = led_blink_fast ? 100 : 1000;
 
-  if (board_millis() - start_ms < interval)
-    return;
-  start_ms = board_millis();
-
-  gpio_xor_mask(1u << PIN_LED);
+  if (now - last_step > interval) {
+    last_step = now;
+    static bool toggle = false;
+    toggle = !toggle;
+    if (toggle) {
+      if (led_blink_fast)
+        ws2812_put_rgb(255, 0, 0); // Red for action
+      else
+        ws2812_put_rgb(0, 0, 255); // Blue for active
+    } else {
+      ws2812_put_rgb(0, 0, 0);
+    }
+  }
 }
 
 // CDC Callback: Invoked when CDC interface received data from host

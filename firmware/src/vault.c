@@ -4,8 +4,8 @@
 #include "pico/stdlib.h"
 #include <string.h>
 
-// Define flash offset for the vault (last 64KB of 2MB flash)
-#define FLASH_TARGET_OFFSET (1024 * 1024 * 2 - 65536)
+// Define flash offset for the vault (last 64KB of 16MB flash for Tenstar board)
+#define FLASH_TARGET_OFFSET (1024 * 1024 * 16 - 65536)
 #define MAX_FIDO_CREDS 10
 
 typedef struct {

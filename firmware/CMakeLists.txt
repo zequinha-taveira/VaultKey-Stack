@@ -1,7 +1,10 @@
 cmake_minimum_required(VERSION 3.13)
 
-# Initialize Pico SDK
-include(pico_sdk_import.cmake)
+# Default to RP2350 (Tenstar board)
+set(PICO_BOARD "rp2350" CACHE STRING "Target board")
+set(PICO_PLATFORM "rp2350" CACHE STRING "Target platform")
+
+include($ENV{PICO_SDK_PATH}/pico_sdk_init.cmake)
 
 project(vaultkey_firmware C CXX ASM)
 
