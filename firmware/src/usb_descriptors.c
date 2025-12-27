@@ -1,7 +1,7 @@
 #include "tusb.h"
 
-#define USBD_VID 0x2E8A
-#define USBD_PID 0x000A
+#define USBD_VID 0x234b
+#define USBD_PID 0x0000
 
 //--------------------------------------------------------------------+
 // HID Report Descriptors
@@ -48,7 +48,7 @@ uint8_t const *tud_hid_descriptor_report_cb(uint8_t itf) {
 //--------------------------------------------------------------------+
 tusb_desc_device_t const desc_device = {.bLength = sizeof(tusb_desc_device_t),
                                         .bDescriptorType = TUSB_DESC_DEVICE,
-                                        .bcdUSB = 0x0200,
+                                        .bcdUSB = 0x0210, // USB 2.1 for BOS
                                         .bDeviceClass = TUSB_CLASS_MISC,
                                         .bDeviceSubClass = MISC_SUBCLASS_COMMON,
                                         .bDeviceProtocol = MISC_PROTOCOL_IAD,
@@ -120,7 +120,7 @@ uint8_t const *tud_descriptor_configuration_cb(uint8_t index) {
 char const *string_desc_arr[] = {
     (const char[]){0x09, 0x04}, // 0: English
     "VaultKey Stack",           // 1: Manufacturer
-    "VaultKey Device",          // 2: Product
+    "VaultKey",                 // 2: Product
     "VK-0001",                  // 3: Serial
     "VaultKey CDC",             // 4: CDC Interface
     "VaultKey Protocol",        // 5: HID Generic
@@ -149,5 +149,59 @@ uint16_t const *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
   }
 
   _desc_str[0] = (uint16_t)((TUSB_DESC_STRING << 8) | (2 * chr_count + 2));
-  return (uint8_t const *)_desc_str;
+  return (uint16_t const *)_desc_str;
 }
+
+//--------------------------------------------------------------------+
+// Microsoft OS 2.0 Descriptors
+//--------------------------------------------------------------------+
+
+#define MS_OS_20_DESC_LEN 0x50
+
+// BOS Descriptor is required for MS OS 2.0 support
+#define BOS_TOTAL_LEN (TUD_BOS_DESC_LEN + TUD_BOS_MICROSOFT_OS_DESC_LEN)
+
+#define MS_OS_20_PLATFORM_CAPABILITY_ID                                        \
+  0xD8DD60DF, 0x4589, 0x4CC7, 0x9C, 0xD2, 0x65, 0x9D, 0x9E, 0x64, 0x8A, 0x9F
+
+uint8_t const desc_bos[] = {
+    // BOS Header
+    TUD_BOS_DESCRIPTOR(BOS_TOTAL_LEN, 1),
+
+    // Microsoft OS 2.0 Platform Capability Descriptor
+    TUD_BOS_MS_OS_20_DESCRIPTOR(MS_OS_20_DESC_LEN, 1) // 0x01 is the vendor code
+};
+
+uint8_t const *tud_descriptor_bos_cb(void) { return desc_bos; }
+
+uint8_t const desc_ms_os_20[] = {
+    // Set Header: length, type, windows version, total length
+    U16_TO_U8S_LE(0x000A), U16_TO_U8S_LE(MS_OS_20_SET_HEADER_DESCRIPTOR),
+    U32_TO_U8S_LE(0x06030000), U16_TO_U8S_LE(MS_OS_20_DESC_LEN),
+
+    // Configuration Subset Header: length, type, configuration index, reserved,
+    // total length of this subset
+    U16_TO_U8S_LE(0x0008), U16_TO_U8S_LE(MS_OS_20_SUBSET_HEADER_CONFIGURATION),
+    0, 0, U16_TO_U8S_LE(MS_OS_20_DESC_LEN - 0x0A),
+
+    // Function Subset Header: length, type, first interface, reserved, subset
+    // length
+    U16_TO_U8S_LE(0x0008), U16_TO_U8S_LE(MS_OS_20_SUBSET_HEADER_FUNCTION), 0, 0,
+    U16_TO_U8S_LE(MS_OS_20_DESC_LEN - 0x0A - 0x08),
+
+    // Registry Property: FriendlyName = "VaultKey"
+    U16_TO_U8S_LE(0x0036), U16_TO_U8S_LE(MS_OS_20_FEATURE_REG_PROPERTY),
+    U16_TO_U8S_LE(0x0001),
+    U16_TO_U8S_LE(
+        0x001A), // PropertyDataType (1=REG_SZ), PropertyNameLength (26)
+    'F', 0x00, 'r', 0x00, 'i', 0x00, 'e', 0x00, 'n', 0x00, 'd',
+    0x00, // "FriendlyName"
+    'l', 0x00, 'y', 0x00, 'N', 0x00, 'a', 0x00, 'm', 0x00, 'e', 0x00, 0x00,
+    0x00,
+    U16_TO_U8S_LE(0x0012), // PropertyDataLength (18) = 16 chars + 2 null
+    'V', 0x00, 'a', 0x00, 'u', 0x00, 'l', 0x00, 't', 0x00, 'K', 0x00, 'e', 0x00,
+    'y', 0x00, 0x00, 0x00};
+
+TU_VERIFY_STATIC(sizeof(desc_ms_os_20) == MS_OS_20_DESC_LEN, "Incorrect Size");
+
+uint8_t const *tud_descriptor_ms_os_20_cb(void) { return desc_ms_os_20; }

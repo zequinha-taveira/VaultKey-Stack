@@ -64,7 +64,20 @@ target_compile_options(vaultkey_firmware PRIVATE
 # Create map/bin/hex/uf2 files
 pico_add_extra_outputs(vaultkey_firmware)
 
-# Diagnostic Blinky Target
-add_executable(vaultkey_blinky src/test_blinky.c)
-target_link_libraries(vaultkey_blinky pico_stdlib hardware_gpio)
-pico_add_extra_outputs(vaultkey_blinky)
+# Diagnostic Blinky Target - Source missing, disabled
+# add_executable(vaultkey_blinky src/test_blinky.c)
+# target_link_libraries(vaultkey_blinky pico_stdlib hardware_gpio)
+# pico_add_extra_outputs(vaultkey_blinky)
+
+# PIO Generation
+pico_generate_pio_header(vaultkey_firmware ${CMAKE_CURRENT_LIST_DIR}/src/ws2812.pio)
+
+# Update Link Libraries to include hardware_pio
+target_link_libraries(vaultkey_firmware
+    pico_stdlib
+    pico_flash
+    pico_rand
+    tinyusb_device
+    tinyusb_board
+    hardware_pio
+)

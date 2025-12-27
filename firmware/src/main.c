@@ -1,5 +1,7 @@
 #include "bsp/board.h"
 #include "hardware/gpio.h"
+#include "hardware/pio.h"
+#include "pico/bootrom.h"
 #include "pico/stdlib.h"
 #include "tusb.h"
 #include "vault.h"
@@ -15,30 +17,26 @@
 #define PIN_LED 22    // WS2812 RGB LED
 #define PIN_BUTTON 21 // User presence button (external or bridge GP21 to GND)
 
-// Basic WS2812 Bit-bang for RP2350
+// PIO Includes
+#include "ws2812.pio.h"
+
+// --- PIO LED Drive ---
+static PIO led_pio = pio0;
+static uint led_sm = 0;
+
 void ws2812_put_rgb(uint8_t r, uint8_t g, uint8_t b) {
-  uint32_t val = ((uint32_t)g << 16) | ((uint32_t)r << 8) | (uint32_t)b;
-  for (int i = 23; i >= 0; i--) {
-    if (val & (1 << i)) {
-      gpio_put(PIN_LED, 1);
-      for (volatile int j = 0; j < 10; j++)
-        ; // High for long
-      gpio_put(PIN_LED, 0);
-    } else {
-      gpio_put(PIN_LED, 1);
-      for (volatile int j = 0; j < 2; j++)
-        ; // High for short
-      gpio_put(PIN_LED, 0);
-    }
-  }
+  uint32_t val = ((uint32_t)r << 8) | ((uint32_t)g << 16) | (uint32_t)b;
+  pio_sm_put_blocking(led_pio, led_sm, val << 8u);
 }
 
-static bool led_blink_fast = false;
-static bool led_active = false;
+static bool led_blink_fast = false; // Fast blink for touch confirmation
+static bool led_active = false;     // Master LED switch
+static int led_state_override = -1; // -1: None, 0: Off, 1: Green Boot
 
 void vk_main_set_led_mode(bool wait_for_touch) {
   led_blink_fast = wait_for_touch;
   led_active = true;
+  led_state_override = -1;
 }
 
 void vk_main_led_off(void) {
@@ -59,25 +57,20 @@ bool vk_main_wait_for_button(uint32_t timeout_ms) {
       return true;
     }
 
-    // LED blinking handling is done in led_task called from main while loop?
-    // No, main loop calls led_task. Here we are blocking.
-    // We should probably run led_task logic here or non-blocking?
-    // For simplicity, let's just minimal blink or rely on the fact main loop
-    // isn't running? Wait, main loop calls tud_task and led_task. If we block
-    // here, we need to call led_task() too? Actually, let's just sleep/delay
-    // bit?
+    // We must manually serve LED task here if blocking
+    extern void led_task_run(void);
+    led_task_run();
 
-    // Re-implement LED blink here for blocking wait
-    // Or assume led_task is called? No, we are in a loop.
-    // Let's call led void led_task(void); relative forward decl needed?
-    // It's defined later. Let's move led_task up or define prototype.
+    // Small delay to prevent tight loop if needed, but USB task handles it
   }
   vk_main_led_off();
   return false;
 }
 
-static void led_task(void) {
-  if (!led_active)
+void led_task_run(void) {
+  // Boot Override (Green Pulse) - Handled by main init mostly
+
+  if (!led_active && led_state_override == -1)
     return;
 
   static uint32_t last_step = 0;
@@ -99,10 +92,8 @@ static void led_task(void) {
   }
 }
 
-// Re-defining wait_for_button to use led_task if possible, or just simple logic
-// Actually, let's fix the order. move led_task up.
-// I will just place led_task before wait_for_button in the file structure I
-// write.
+// Forward declare for main loop
+void led_task(void) { led_task_run(); }
 
 void tud_cdc_rx_cb(uint8_t itf) {
   (void)itf;
@@ -312,6 +303,22 @@ void tud_cdc_rx_cb(uint8_t itf) {
   }
 }
 
+// Invoked when cdc when line state changed e.g connected/disconnected
+void tud_cdc_line_state_cb(uint8_t itf, bool dtr, bool rts) {
+  (void)itf;
+  (void)rts;
+  // TODO: connected = dtr
+}
+
+// Invoked when line coding change to set baud rate, stop bit, parity, etc
+void tud_cdc_line_coding_cb(uint8_t itf,
+                            cdc_line_coding_t const *p_line_coding) {
+  (void)itf;
+  if (p_line_coding->bit_rate == 1200) {
+    reset_usb_boot(0, 0);
+  }
+}
+
 // FIDO HID & Main are simpler.
 
 // FIDO Callback
@@ -345,21 +352,55 @@ void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id,
 
 int main(void) {
   board_init();
+
+  // Initialize PIO WS2812
+  // Using 800kHz for WS2812B
+  uint offset = pio_add_program(led_pio, &ws2812_program);
+  ws2812_program_init(led_pio, led_sm, offset, PIN_LED, 800000, false);
+
+  // Boot Diagnostic: Green (Success)
+  // If we crash before this, LED is off.
+  // If we crash after this, LED stays permanent Green.
+  ws2812_put_rgb(0, 255, 0);
+  sleep_ms(500);           // Verify boot delay
+  ws2812_put_rgb(0, 0, 0); // Off
+
   tusb_init();
   vault_init();
-
-  gpio_init(PIN_LED);
-  gpio_set_dir(PIN_LED, GPIO_OUT);
 
   // GP21 Button
   gpio_init(PIN_BUTTON);
   gpio_set_dir(PIN_BUTTON, GPIO_IN);
   gpio_pull_up(PIN_BUTTON);
 
+  // Default to active heartbeat
+  vk_main_set_led_mode(false);
+
   while (1) {
     tud_task(); // tinyusb device task
     led_task();
     vault_check_autolock();
+
+    // Button Bootloader Logic (GP21)
+    // Long press (2s) -> Enter Bootloader
+    static uint32_t btn_start = 0;
+    static bool btn_held = false;
+
+    if (!gpio_get(PIN_BUTTON)) {
+      if (!btn_held) {
+        btn_start = board_millis();
+        btn_held = true;
+      } else {
+        if (board_millis() - btn_start > 2000) {
+          // Signal user: White/Pink
+          ws2812_put_rgb(255, 0, 255);
+          sleep_ms(100);
+          reset_usb_boot(0, 0);
+        }
+      }
+    } else {
+      btn_held = false;
+    }
   }
   return 0;
 }
