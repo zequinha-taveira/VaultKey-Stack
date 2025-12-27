@@ -46,21 +46,21 @@ uint8_t const *tud_hid_descriptor_report_cb(uint8_t itf) {
 //--------------------------------------------------------------------+
 // Device Descriptor
 //--------------------------------------------------------------------+
-tusb_desc_device_t const desc_device = {.bLength = sizeof(tusb_desc_device_t),
-                                        .bDescriptorType = TUSB_DESC_DEVICE,
-                                        .bcdUSB = 0x0210, // USB 2.1 for BOS
-                                        .bDeviceClass = TUSB_CLASS_MISC,
-                                        .bDeviceSubClass = MISC_SUBCLASS_COMMON,
-                                        .bDeviceProtocol = MISC_PROTOCOL_IAD,
-                                        .bMaxPacketSize0 =
-                                            CFG_TUD_ENDPOINT0_SIZE,
-                                        .idVendor = USBD_VID,
-                                        .idProduct = USBD_PID,
-                                        .bcdDevice = 0x0100,
-                                        .iManufacturer = 0x01,
-                                        .iProduct = 0x02,
-                                        .iSerialNumber = 0x03,
-                                        .bNumConfigurations = 0x01};
+tusb_desc_device_t const desc_device = {
+    .bLength = sizeof(tusb_desc_device_t),
+    .bDescriptorType = TUSB_DESC_DEVICE,
+    .bcdUSB = 0x0210, // USB 2.1 for BOS
+    .bDeviceClass = TUSB_CLASS_MISC,
+    .bDeviceSubClass = MISC_SUBCLASS_COMMON,
+    .bDeviceProtocol = MISC_PROTOCOL_IAD,
+    .bMaxPacketSize0 = CFG_TUD_ENDPOINT0_SIZE,
+    .idVendor = USBD_VID,
+    .idProduct = USBD_PID,
+    .bcdDevice = 0x0101, // Bump version to force cache refresh
+    .iManufacturer = 0x01,
+    .iProduct = 0x02,
+    .iSerialNumber = 0x03,
+    .bNumConfigurations = 0x01};
 
 uint8_t const *tud_descriptor_device_cb(void) {
   return (uint8_t const *)&desc_device;
